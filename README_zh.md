@@ -1,4 +1,7 @@
-# MemClaw
+<p align="center">
+    <img src="./assets/intro_banner_glance.webp">
+</p>
+<h1 align="center">Cowork Forge</h1>
 
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![OpenClaw Compatible](https://img.shields.io/badge/OpenClaw-compatible-brightgreen)](https://github.com/openclaw/openclaw)
@@ -9,7 +12,7 @@
     <a href="./README_zh.md">中文</a>
 </p>
 
-> **MemClaw** — 为 OpenClaw 打造的 Cortex Memory 记忆增强套件，提供生产级 L0/L1/L2 分层语义记忆与原生 Context Engine 集成。
+> **MemClaw** — 为 OpenClaw 打造的 [Cortex Memory](https://github.com/sopaco/cortex-mem) 记忆增强套件，提供生产级 L0/L1/L2 分层语义记忆与原生 Context Engine 集成。
 
 ---
 
