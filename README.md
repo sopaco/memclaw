@@ -3,13 +3,17 @@
 </p>
 <h1 align="center">Cowork Forge</h1>
 
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![OpenClaw Compatible](https://img.shields.io/badge/OpenClaw-compatible-brightgreen)](https://github.com/openclaw/openclaw)
-
 <p align="center">
     <a href="./README.md">English</a>
     |
     <a href="./README_zh.md">中文</a>
+</p>
+
+<p align="center">
+    <a href="https://github.com/openclaw/openclaw"><img alt="OpenClaw Compatible" src="https://img.shields.io/badge/OpenClaw-compatible-brightgreen"/></a>
+    <a href="https://raw.githubusercontent.com/sopaco/cortex-mem/refs/heads/main/assets/benchmark/cortex_mem_vs_openclaw_3.png?raw=true"><img alt="Benchmark" src="https://img.shields.io/badge/Benchmark-Perfect-green?logo=speedtest&labelColor=%231150af&color=%2300b89f"></a>
+    <a href="https://github.com/sopaco/cortex-mem/tree/main/litho.docs/en"><img alt="Litho Docs" src="https://img.shields.io/badge/Litho-Docs-green?logo=Gitbook&color=%23008a60"/></a>
+    <a href="https://github.com/sopaco/cortex-mem/tree/main/litho.docs/zh"><img alt="Litho Docs" src="https://img.shields.io/badge/Litho-中文-green?logo=Gitbook&color=%23008a60"/></a>
 </p>
 
 > **MemClaw** — A [Cortex Memory](https://github.com/sopaco/cortex-mem) enhancement suite for OpenClaw, providing production-grade L0/L1/L2 layered semantic memory with native Context Engine integration.
