@@ -1,4 +1,7 @@
-# MemClaw
+<p align="center">
+    <img src="./assets/intro_banner_glance.webp">
+</p>
+<h1 align="center">Cowork Forge</h1>
 
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![OpenClaw Compatible](https://img.shields.io/badge/OpenClaw-compatible-brightgreen)](https://github.com/openclaw/openclaw)
@@ -9,7 +12,7 @@
     <a href="./README_zh.md">中文</a>
 </p>
 
-> **MemClaw** — A Cortex Memory enhancement suite for OpenClaw, providing production-grade L0/L1/L2 layered semantic memory with native Context Engine integration.
+> **MemClaw** — A [Cortex Memory](https://github.com/sopaco/cortex-mem) enhancement suite for OpenClaw, providing production-grade L0/L1/L2 layered semantic memory with native Context Engine integration.
 
 ---
 
