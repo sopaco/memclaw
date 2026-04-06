@@ -1,0 +1,151 @@
+{
+  "id": "memclaw-context-engine",
+  "name": "MemClaw Context Engine",
+  "version": "0.9.50",
+  "description": "Native context management for OpenClaw with automatic recall, capture, and compaction powered by Cortex Memory",
+  "kind": "context-engine",
+  "platforms": ["darwin-arm64", "win-x64", "linux-x64"],
+  "osRestriction": ["darwin-arm64", "win-x64", "linux-x64"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "serviceUrl": {
+        "type": "string",
+        "description": "Cortex Memory service URL",
+        "default": "http://localhost:8085"
+      },
+      "tenantId": {
+        "type": "string",
+        "description": "Tenant ID for data isolation",
+        "default": "tenant_claw"
+      },
+      "autoStartServices": {
+        "type": "boolean",
+        "description": "Automatically start Qdrant and cortex-mem-service if not running",
+        "default": true
+      },
+      "autoRecall": {
+        "type": "boolean",
+        "description": "Enable automatic memory recall during context assembly",
+        "default": true
+      },
+      "autoCapture": {
+        "type": "boolean",
+        "description": "Enable automatic message capture after each turn",
+        "default": true
+      },
+      "recallWindow": {
+        "type": "integer",
+        "description": "Number of recent user turns to construct recall query",
+        "default": 5,
+        "minimum": 1,
+        "maximum": 20
+      },
+      "recallLimit": {
+        "type": "integer",
+        "description": "Maximum number of memories to recall",
+        "default": 10,
+        "minimum": 1,
+        "maximum": 50
+      },
+      "recallMinScore": {
+        "type": "number",
+        "description": "Minimum relevance score for recall (0-1)",
+        "default": 0.65,
+        "minimum": 0,
+        "maximum": 1
+      },
+      "recallTokenBudget": {
+        "type": "integer",
+        "description": "Token budget for recalled memories",
+        "default": 2000,
+        "minimum": 100,
+        "maximum": 10000
+      },
+      "commitTokenThreshold": {
+        "type": "integer",
+        "description": "Token threshold to trigger automatic commit",
+        "default": 50000,
+        "minimum": 10000,
+        "maximum": 200000
+      },
+      "commitTurnThreshold": {
+        "type": "integer",
+        "description": "Turn threshold to trigger automatic commit",
+        "default": 20,
+        "minimum": 5,
+        "maximum": 100
+      },
+      "recentRawTurnCount": {
+        "type": "integer",
+        "description": "Number of recent raw turns to keep in context",
+        "default": 8,
+        "minimum": 2,
+        "maximum": 30
+      },
+      "llmApiBaseUrl": {
+        "type": "string",
+        "description": "LLM API endpoint URL (OpenAI-compatible)",
+        "default": "https://api.openai.com/v1"
+      },
+      "llmApiKey": {
+        "type": "string",
+        "description": "LLM API key for memory processing",
+        "sensitive": true
+      },
+      "llmModel": {
+        "type": "string",
+        "description": "LLM model name for memory processing",
+        "default": "gpt-5-mini"
+      },
+      "embeddingApiBaseUrl": {
+        "type": "string",
+        "description": "Embedding API endpoint URL (OpenAI-compatible)",
+        "default": "https://api.openai.com/v1"
+      },
+      "embeddingApiKey": {
+        "type": "string",
+        "description": "Embedding API key for vector generation",
+        "sensitive": true
+      },
+      "embeddingModel": {
+        "type": "string",
+        "description": "Embedding model name for vector search",
+        "default": "text-embedding-3-small"
+      }
+    },
+    "required": []
+  },
+  "uiHints": {
+    "serviceUrl": {
+      "label": "Service URL",
+      "description": "The HTTP endpoint of your cortex-mem-service instance"
+    },
+    "tenantId": {
+      "label": "Tenant ID",
+      "description": "Tenant identifier for data isolation"
+    },
+    "autoStartServices": {
+      "label": "Auto-start Services",
+      "description": "Automatically start Qdrant and cortex-mem-service when plugin loads"
+    },
+    "autoRecall": {
+      "label": "Auto Recall",
+      "description": "Automatically recall relevant memories during context assembly"
+    },
+    "autoCapture": {
+      "label": "Auto Capture",
+      "description": "Automatically capture messages after each turn"
+    },
+    "llmApiKey": {
+      "label": "LLM API Key",
+      "description": "API key for LLM service (required for memory processing)",
+      "sensitive": true
+    },
+    "embeddingApiKey": {
+      "label": "Embedding API Key",
+      "description": "API key for embedding service (required for vector search)",
+      "sensitive": true
+    }
+  }
+}
