@@ -1,7 +1,7 @@
 <p align="center">
     <img src="./assets/intro_banner_glance.webp">
 </p>
-<h1 align="center">Cowork Forge</h1>
+<h1 align="center">MemClaw</h1>
 
 <p align="center">
     <a href="./README.md">English</a>
