@@ -1,19 +1,29 @@
 "use strict";
 /**
- * Context Engine Implementation
+ * Context Engine Implementation — Optimized
  *
- * Implements the OpenClaw Context Engine lifecycle:
- * - ingest: Receive messages into buffer
- * - assemble: Build context with auto-recall and session history
- * - afterTurn: Persist messages and evaluate commit triggers
- * - compact: Archive session and extract memories
+ * Design goals:
+ * - Minimize LLM/token consumption
+ * - Batch operations where possible
+ * - Local state tracking to avoid unnecessary API calls
+ * - ownsCompaction: false (use OpenClaw built-in compaction)
+ *
+ * Lifecycle:
+ * - ingest:     Buffer messages locally (no network)
+ * - assemble:   Auto-recall with cooldown + dedup, inject context
+ * - afterTurn:  Batch write + evaluate commit trigger
+ * - compact:    Delegate to OpenClaw runtime, optionally trigger close
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ContextEngine = void 0;
 exports.openClawSessionToCortexId = openClawSessionToCortexId;
 exports.createContextEngine = createContextEngine;
 const node_crypto_1 = require("node:crypto");
-// =================--- Token Estimation ====================
+// ==================== Token Estimation ====================
+/**
+ * Simple token estimation: ~4 chars per token.
+ * Good enough for thresholds; absolute accuracy not required.
+ */
 function estimateTokens(messages) {
     return Math.max(1, Math.ceil(JSON.stringify(messages).length / 4));
 }
@@ -48,109 +58,47 @@ function openClawSessionToCortexId(sessionId, sessionKey) {
     }
     throw new Error('Need sessionId or sessionKey for Cortex session path');
 }
-// ==================== Message Conversion ====================
-function convertToAgentMessages(msg) {
-    const contentBlocks = [];
-    const toolResults = [];
-    const content = msg.content;
-    if (typeof content === 'string') {
-        return [{ role: msg.role, content }];
-    }
-    if (Array.isArray(content)) {
-        for (const block of content) {
-            if (block.type === 'text' && block.text) {
-                contentBlocks.push({ type: 'text', text: block.text });
-            }
-            else if (block.type === 'toolUse' && block.id && block.name) {
-                contentBlocks.push({
-                    type: 'toolUse',
-                    id: block.id,
-                    name: block.name,
-                    input: block.input
-                });
-                // Tool result handling would go here if we had the result data
-            }
-            else if (block.type === 'toolResult' && block.toolCallId) {
-                toolResults.push({
-                    role: 'toolResult',
-                    toolCallId: block.toolCallId,
-                    content: block.content,
-                    isError: block.isError
-                });
-            }
-        }
-    }
-    const result = [];
-    if (msg.role === 'assistant') {
-        result.push({ role: msg.role, content: contentBlocks });
-        result.push(...toolResults);
-    }
-    else {
-        const texts = contentBlocks
-            .filter((b) => b.type === 'text')
-            .map((b) => b.text);
-        result.push({ role: msg.role, content: texts.join('\n') || '' });
-    }
-    return result;
-}
-function normalizeAssistantContent(messages) {
-    for (let i = 0; i < messages.length; i++) {
-        const msg = messages[i];
-        if (msg?.role === 'assistant' && typeof msg.content === 'string') {
-            messages[i] = {
-                ...msg,
-                content: [{ type: 'text', text: msg.content }],
-            };
-        }
-    }
-}
 // ==================== Recall Query Construction ====================
 function extractRecentUserTexts(messages, window) {
     const userTexts = [];
-    // Go backwards from the end to find recent user messages
     for (let i = messages.length - 1; i >= 0 && userTexts.length < window; i--) {
         const msg = messages[i];
         if (msg?.role === 'user') {
             const content = msg.content;
-            if (typeof content === 'string' && content.trim()) {
-                // Skip very short messages (greetings, etc.)
-                if (content.trim().length > 10) {
-                    userTexts.unshift(content.trim().slice(0, 500));
-                }
+            if (typeof content === 'string' && content.trim().length > 10) {
+                userTexts.unshift(content.trim().slice(0, 500));
             }
         }
     }
     return userTexts;
 }
+/**
+ * Check if query is too similar to the last recall query.
+ * Uses simple overlap ratio to avoid redundant searches.
+ */
+function isSimilarQuery(current, previous, threshold = 0.7) {
+    if (!previous)
+        return false;
+    const a = current.toLowerCase().split(/\s+/);
+    const b = previous.toLowerCase().split(/\s+/);
+    let overlap = 0;
+    for (const word of a) {
+        if (word.length < 3)
+            continue; // skip short words
+        if (b.includes(word))
+            overlap++;
+    }
+    const maxLen = Math.max(a.filter((w) => w.length >= 3).length, 1);
+    return overlap / maxLen >= threshold;
+}
 // ==================== System Prompt Addition ====================
 function buildSystemPromptAddition() {
     return `
-## Session Context Guide
+## Memory Guide
 
-Your conversation history may include:
-
-1. **[Session History Summary]** — A compressed summary of prior sessions.
-   Specific details (commands, paths, code) may have been compressed away.
-
-2. **[Archive Index]** — A list of archive entries in chronological order.
-   archive_001 is oldest, higher numbers are more recent.
-
-3. **Auto Recall Results** — Relevant memories retrieved based on context.
-   Shown as simulated tool call results.
-
-4. **Active messages** — The current, uncompressed conversation.
-
-**When you need precise details from a prior session:**
-
-1. Review [Archive Index] to identify which archive likely contains the info.
-2. Call \`cortex_archive_expand\` with that archive ID.
-3. Answer using the retrieved content together with active messages.
-
-**Rules:**
-- If active messages conflict with archive/memory content, trust active messages.
-- Only expand an archive when existing context lacks specific detail.
-- Do not fabricate details from summaries. When uncertain, expand first.
-- After expanding, cite the archive ID in your answer.
+Relevant memories from past conversations may appear as tool call results from \`cortex_search\`.
+Use them for context, but trust the current conversation for exact details.
+To search for more, use \`cortex_search\` or browse with \`cortex_ls\`.
 `.trim();
 }
 // ==================== Context Engine Class ====================
@@ -161,6 +109,8 @@ class ContextEngine {
     logger;
     // Session buffers
     sessionBuffers = new Map();
+    // Recall state (per-session, for cooldown + dedup)
+    recallStates = new Map();
     constructor(info, config, client, logger) {
         this.info = info;
         this.config = config;
@@ -172,92 +122,73 @@ class ContextEngine {
     }
     // ==================== Ingest ====================
     async ingest(params) {
-        // Get or create buffer
+        if (params.isHeartbeat) {
+            return { ingested: false };
+        }
         const buffer = this.getOrCreateBuffer(params.sessionId);
-        // Add to pending messages
         buffer.pendingMessages.push(params.message);
-        buffer.totalChars += estimateMessageChars(params.message);
-        buffer.lastWriteAt = new Date();
-        this.logger.debug?.(`[context-engine] Ingested message for session ${params.sessionId}`);
+        buffer.pendingTokens += estimateMessageChars(params.message) / 4;
         return { ingested: true };
     }
     // ==================== Assemble ====================
     async assemble(params) {
-        const tokenBudget = params.tokenBudget ?? 128000;
-        const sessionKey = params.sessionKey ?? this.extractSessionKey(params.runtimeContext);
         const originalTokens = estimateTokens(params.messages);
-        this.logger.debug?.(`[context-engine] Assemble for session ${params.sessionId}, budget=${tokenBudget}`);
+        // If autoRecall disabled, return original messages directly
+        if (!this.config.autoRecall) {
+            return { messages: params.messages, estimatedTokens: originalTokens };
+        }
         try {
-            // Get Cortex session ID
-            const cortexSessionId = openClawSessionToCortexId(params.sessionId, sessionKey);
-            // Get session context from cortex-mem-service
-            const ctx = await this.client.getSessionContext(cortexSessionId, tokenBudget);
-            const hasArchives = !!ctx.latest_archive_overview || ctx.pre_archive_abstracts.length > 0;
-            const activeCount = ctx.messages.length;
-            // If no context data, return original messages
-            if (!ctx || (!hasArchives && activeCount === 0)) {
-                this.logger.debug?.(`[context-engine] No context data, returning original messages`);
+            // Try auto-recall with cooldown + dedup
+            const recallResult = await this.doAutoRecall(params.sessionId, params.messages);
+            if (!recallResult) {
                 return { messages: params.messages, estimatedTokens: originalTokens };
             }
-            // Build assembled messages
-            const assembled = [];
-            // 1. Session History Summary
-            if (ctx.latest_archive_overview) {
-                assembled.push({
-                    role: 'user',
-                    content: `[Session History Summary]\n${ctx.latest_archive_overview}`
-                });
-            }
-            // 2. Archive Index
-            if (ctx.pre_archive_abstracts.length > 0) {
-                const lines = ctx.pre_archive_abstracts.map((a) => `${a.archive_id}: ${a.abstract}`);
-                assembled.push({
-                    role: 'user',
-                    content: `[Archive Index]\n${lines.join('\n')}`
-                });
-            }
-            // 3. Auto Recall (if enabled)
-            if (this.config.autoRecall) {
-                const recallResult = await this.doAutoRecall(params.messages, tokenBudget);
-                if (recallResult) {
-                    assembled.push(...recallResult);
-                }
-            }
-            // 4. Active messages from context
-            assembled.push(...ctx.messages.flatMap((m) => convertToAgentMessages(m)));
-            // 5. Normalize and return
-            normalizeAssistantContent(assembled);
-            const estimatedTokens = ctx.estimatedTokens;
-            this.logger.info(`[context-engine] Assembled context: ${assembled.length} messages, ` +
-                `archives=${ctx.pre_archive_abstracts.length}, ` +
-                `tokens=${estimatedTokens}`);
+            // Inject recall results before active messages
+            const assembled = [...recallResult, ...params.messages];
+            this.logger.info(`[context-engine] Assembled context: ${assembled.length} messages (recalled ${recallResult.length})`);
             return {
                 messages: assembled,
-                estimatedTokens,
-                systemPromptAddition: hasArchives ? buildSystemPromptAddition() : undefined
+                estimatedTokens: originalTokens + estimateTokens(recallResult),
+                systemPromptAddition: buildSystemPromptAddition()
             };
         }
         catch (err) {
             this.logger.warn(`[context-engine] Assemble failed: ${err}`);
-            // Fallback to original messages
             return { messages: params.messages, estimatedTokens: originalTokens };
         }
     }
-    async doAutoRecall(messages, tokenBudget) {
+    async doAutoRecall(sessionId, messages) {
         // Extract recent user texts for query
         const userTexts = extractRecentUserTexts(messages, this.config.recallWindow);
         if (userTexts.length === 0) {
             return null;
         }
         const query = userTexts.join(' ');
+        // Dedup: skip if query is too similar to last recall for this session
+        const state = this.recallStates.get(sessionId);
+        if (state && isSimilarQuery(query, state.lastQuery)) {
+            this.logger.debug?.(`[context-engine] Auto-recall skipped (similar query)`);
+            return null;
+        }
+        // Cooldown: skip if recalled within the last 60 seconds
+        const recallCooldownMs = 60_000;
+        if (state && Date.now() - state.lastAt.getTime() < recallCooldownMs) {
+            this.logger.debug?.(`[context-engine] Auto-recall skipped (cooldown)`);
+            return null;
+        }
         try {
             this.logger.debug?.(`[context-engine] Auto-recall query: ${query.slice(0, 100)}...`);
-            // Search across user and agent memories
             const results = await this.client.search({
                 query,
                 limit: this.config.recallLimit,
                 min_score: this.config.recallMinScore,
-                return_layers: ['L0', 'L1'] // Use abstract and overview for efficiency
+                return_layers: ['L0']
+            });
+            // Update recall state for this session
+            this.recallStates.set(sessionId, {
+                lastQuery: query,
+                lastResultCount: results.length,
+                lastAt: new Date()
             });
             if (results.length === 0) {
                 return null;
@@ -267,17 +198,19 @@ class ContextEngine {
             return [
                 {
                     role: 'assistant',
-                    content: [{
+                    content: [
+                        {
                             type: 'toolUse',
                             id: 'auto-recall-001',
                             name: 'cortex_search',
                             input: { query }
-                        }]
+                        }
+                    ]
                 },
                 {
                     role: 'toolResult',
                     toolCallId: 'auto-recall-001',
-                    content: recallContent
+                    content: [{ type: 'text', text: recallContent }]
                 }
             ];
         }
@@ -287,7 +220,7 @@ class ContextEngine {
         }
     }
     formatRecallResults(results, query) {
-        const lines = [`Found ${results.length} relevant memories for "${query.slice(0, 50)}...":\n`];
+        const lines = [`Found ${results.length} relevant memories:\n`];
         for (let i = 0; i < results.length; i++) {
             const r = results[i];
             lines.push(`${i + 1}. [Score: ${r.score.toFixed(2)}] ${r.uri}`);
@@ -301,7 +234,7 @@ class ContextEngine {
     }
     // ==================== After Turn ====================
     async afterTurn(params) {
-        if (!this.config.autoCapture) {
+        if (!this.config.autoCapture || params.isHeartbeat) {
             return;
         }
         const sessionKey = params.sessionKey ?? this.extractSessionKey(params.runtimeContext);
@@ -309,52 +242,91 @@ class ContextEngine {
         if (messages.length === 0) {
             return;
         }
-        // Extract new messages
-        const start = typeof params.prePromptMessageCount === 'number' && params.prePromptMessageCount >= 0
-            ? params.prePromptMessageCount
-            : 0;
-        const newMessages = messages.slice(start).filter((m) => {
-            const r = m.role;
-            return r === 'user' || r === 'assistant';
-        });
-        if (newMessages.length === 0) {
-            return;
-        }
-        try {
-            const cortexSessionId = openClawSessionToCortexId(params.sessionId, sessionKey);
-            // Write new messages to session
-            for (const msg of newMessages) {
-                const content = this.extractMessageContent(msg);
-                if (content) {
-                    await this.client.addMessage(cortexSessionId, {
+        const buffer = this.getOrCreateBuffer(params.sessionId);
+        const cortexSessionId = openClawSessionToCortexId(params.sessionId, sessionKey);
+        // Batch write pending messages (single HTTP call with fallback)
+        const batch = buffer.pendingMessages.splice(0);
+        if (batch.length > 0) {
+            try {
+                const writeMessages = batch
+                    .map((msg) => {
+                    const content = this.extractMessageContent(msg);
+                    if (!content)
+                        return null;
+                    return {
                         role: msg.role ?? 'user',
                         content
-                    });
+                    };
+                })
+                    .filter((m) => m !== null);
+                if (writeMessages.length > 0) {
+                    const added = await this.client.addMessages(cortexSessionId, writeMessages);
+                    buffer.messageCount += added;
+                    this.logger.debug?.(`[context-engine] Batch wrote ${added}/${writeMessages.length} messages`);
                 }
             }
-            this.logger.debug?.(`[context-engine] Wrote ${newMessages.length} messages to session ${cortexSessionId}`);
-            // Check if we should trigger commit
-            const session = await this.client.getSession(cortexSessionId);
-            const pendingTokens = session.pending_tokens ?? 0;
-            const messageCount = session.message_count ?? 0;
-            const shouldCommit = pendingTokens >= this.config.commitTokenThreshold ||
-                messageCount >= this.config.commitTurnThreshold;
-            if (shouldCommit) {
-                this.logger.info(`[context-engine] Triggering commit for session ${cortexSessionId} ` +
-                    `(tokens=${pendingTokens}, messages=${messageCount})`);
-                // Async commit - don't wait
-                this.client.commitSession(cortexSessionId, { wait: false })
-                    .then(result => {
-                    this.logger.info(`[context-engine] Commit result: ${result.status}`);
-                })
-                    .catch(err => {
-                    this.logger.warn(`[context-engine] Commit failed: ${err}`);
-                });
+            catch (err) {
+                this.logger.warn(`[context-engine] Batch write failed: ${err}`);
+                // Put messages back for retry next turn
+                buffer.pendingMessages.unshift(...batch);
+                return; // Don't evaluate commit if write failed
             }
         }
-        catch (err) {
-            this.logger.warn(`[context-engine] afterTurn failed: ${err}`);
+        // Evaluate commit trigger (local state, no API call)
+        const shouldCommit = this.shouldTriggerCommit(buffer);
+        if (shouldCommit) {
+            this.triggerCommitAsync(cortexSessionId, buffer);
         }
+    }
+    /**
+     * Evaluate whether to trigger commit based on local state.
+     * No network calls needed.
+     */
+    shouldTriggerCommit(buffer) {
+        // Already committing — skip
+        if (buffer.isCommitting)
+            return false;
+        // Token threshold
+        if (buffer.pendingTokens >= this.config.commitTokenThreshold) {
+            this.logger.debug?.(`[context-engine] Commit trigger: tokens=${Math.round(buffer.pendingTokens)}`);
+            return true;
+        }
+        // Message count threshold
+        if (buffer.messageCount >= this.config.commitTurnThreshold) {
+            this.logger.debug?.(`[context-engine] Commit trigger: messages=${buffer.messageCount}`);
+            return true;
+        }
+        // Time interval protection
+        if (buffer.lastCommitAt) {
+            const elapsed = Date.now() - buffer.lastCommitAt.getTime();
+            if (elapsed >= this.config.commitIntervalMs) {
+                this.logger.debug?.(`[context-engine] Commit trigger: interval=${Math.round(elapsed / 60000)}min`);
+                return true;
+            }
+        }
+        return false;
+    }
+    /**
+     * Trigger commit asynchronously (fire and forget).
+     * Does not block the current turn.
+     */
+    triggerCommitAsync(cortexSessionId, buffer) {
+        buffer.isCommitting = true;
+        this.client
+            .closeSession(cortexSessionId, false)
+            .then((result) => {
+            const memCount = Object.values(result.memories_extracted ?? {}).reduce((a, b) => a + b, 0);
+            this.logger.info(`[context-engine] Commit completed: status=${result.status}, memories=${memCount}`);
+        })
+            .catch((err) => {
+            this.logger.warn(`[context-engine] Commit failed: ${err}`);
+        })
+            .finally(() => {
+            // Reset commit state
+            buffer.isCommitting = false;
+            buffer.lastCommitAt = new Date();
+            buffer.pendingTokens = 0;
+        });
     }
     extractMessageContent(msg) {
         const content = msg.content;
@@ -364,54 +336,70 @@ class ContextEngine {
         if (Array.isArray(content)) {
             return content
                 .filter((b) => b && typeof b === 'object' && b.type === 'text' && typeof b.text === 'string')
-                .map(b => b.text)
+                .map((b) => b.text)
                 .join('\n');
         }
         return '';
     }
     // ==================== Compact ====================
+    /**
+     * Compact is delegated to OpenClaw runtime (ownsCompaction: false).
+     * This method is called by OpenClaw after it compacts the conversation.
+     * We use it as a signal to potentially close the session.
+     */
     async compact(params) {
-        const tokenBudget = params.tokenBudget ?? 128000;
         const tokensBefore = params.currentTokenCount ?? -1;
-        this.logger.info(`[context-engine] Compact for session ${params.sessionId}`);
+        const sessionKey = this.extractSessionKey(params.runtimeContext);
+        this.logger.info(`[context-engine] Compact called for session ${params.sessionId}`);
         try {
-            // Get Cortex session ID
-            const cortexSessionId = openClawSessionToCortexId(params.sessionId, undefined);
-            // Commit session (synchronous)
-            const result = await this.client.commitSession(cortexSessionId, { wait: true });
-            if (result.status === 'failed') {
-                return {
-                    ok: false,
-                    compacted: false,
-                    reason: 'commit_failed',
-                    result: { tokensBefore, details: { error: result.error } }
-                };
-            }
-            if (result.status === 'timeout') {
-                return {
-                    ok: false,
-                    compacted: false,
-                    reason: 'commit_timeout',
-                    result: { tokensBefore, details: { taskId: result.task_id } }
-                };
-            }
-            // Get updated context
-            const ctx = await this.client.getSessionContext(cortexSessionId, tokenBudget);
-            this.logger.info(`[context-engine] Compact completed: archived=${result.archived}, ` +
-                `memories=${Object.values(result.memories_extracted ?? {}).reduce((a, b) => a + b, 0)}`);
-            return {
-                ok: true,
-                compacted: result.archived ?? false,
-                reason: 'commit_completed',
-                result: {
-                    summary: ctx.latest_archive_overview,
-                    tokensBefore,
-                    tokensAfter: ctx.estimatedTokens,
-                    details: {
-                        archiveId: result.archive_id,
-                        memoriesExtracted: result.memories_extracted
+            const cortexSessionId = openClawSessionToCortexId(params.sessionId, sessionKey);
+            const buffer = this.sessionBuffers.get(params.sessionId);
+            // Flush pending messages directly (not via afterTurn which checks messages.length)
+            if (buffer && buffer.pendingMessages.length > 0) {
+                const flushBatch = buffer.pendingMessages.splice(0);
+                try {
+                    const writeMessages = flushBatch
+                        .map((msg) => {
+                        const content = this.extractMessageContent(msg);
+                        if (!content)
+                            return null;
+                        return {
+                            role: msg.role ?? 'user',
+                            content
+                        };
+                    })
+                        .filter((m) => m !== null);
+                    if (writeMessages.length > 0) {
+                        const added = await this.client.addMessages(cortexSessionId, writeMessages);
+                        buffer.messageCount += added;
+                        this.logger.debug?.(`[context-engine] Flushed ${added} pending messages before close`);
                     }
                 }
+                catch (err) {
+                    this.logger.warn(`[context-engine] Failed to flush pending messages: ${err}`);
+                    // Put back for safety
+                    buffer.pendingMessages.unshift(...flushBatch);
+                }
+            }
+            // Fire-and-forget close — don't block
+            this.client
+                .closeSession(cortexSessionId, false)
+                .then((result) => {
+                const memCount = Object.values(result.memories_extracted ?? {}).reduce((a, b) => a + b, 0);
+                this.logger.info(`[context-engine] Session closed: ${result.status}, memories=${memCount}`);
+            })
+                .catch((err) => {
+                this.logger.warn(`[context-engine] Session close failed: ${err}`);
+            });
+            // Clean up session buffer to prevent memory leak
+            // Compact marks the end of a session lifecycle
+            this.sessionBuffers.delete(params.sessionId);
+            this.recallStates.delete(params.sessionId);
+            return {
+                ok: true,
+                compacted: false, // OpenClaw handled compaction
+                reason: 'delegated_to_runtime',
+                result: { tokensBefore }
             };
         }
         catch (err) {
@@ -432,9 +420,7 @@ class ContextEngine {
                 sessionId,
                 openClawSessionId: sessionId,
                 pendingMessages: [],
-                totalChars: 0,
                 messageCount: 0,
-                lastWriteAt: new Date(),
                 lastCommitAt: null,
                 pendingTokens: 0,
                 isCommitting: false
@@ -456,8 +442,8 @@ function createContextEngine(config, client, logger) {
     const info = {
         id: 'memclaw-context-engine',
         name: 'MemClaw Context Engine',
-        version: '0.1.0',
-        ownsCompaction: true
+        version: '0.9.50',
+        ownsCompaction: false // Delegated to OpenClaw runtime
     };
     return new ContextEngine(info, config, client, logger);
 }

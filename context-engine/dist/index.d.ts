@@ -43,7 +43,7 @@ export declare function createPlugin(api: OpenClawPluginApi): void;
 export { CortexMemClient } from './client.js';
 export { createContextEngine, openClawSessionToCortexId } from './context-engine.js';
 export { createTools } from './tools.js';
-export * from './config.js';
+export { parsePluginConfig, getDefaultContextEngineConfig, type ContextEngineConfig } from './config.js';
 export * from './binaries.js';
 declare const _default: {
     createPlugin: typeof createPlugin;

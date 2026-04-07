@@ -1,11 +1,17 @@
 /**
- * Context Engine Implementation
+ * Context Engine Implementation — Optimized
  *
- * Implements the OpenClaw Context Engine lifecycle:
- * - ingest: Receive messages into buffer
- * - assemble: Build context with auto-recall and session history
- * - afterTurn: Persist messages and evaluate commit triggers
- * - compact: Archive session and extract memories
+ * Design goals:
+ * - Minimize LLM/token consumption
+ * - Batch operations where possible
+ * - Local state tracking to avoid unnecessary API calls
+ * - ownsCompaction: false (use OpenClaw built-in compaction)
+ *
+ * Lifecycle:
+ * - ingest:     Buffer messages locally (no network)
+ * - assemble:   Auto-recall with cooldown + dedup, inject context
+ * - afterTurn:  Batch write + evaluate commit trigger
+ * - compact:    Delegate to OpenClaw runtime, optionally trigger close
  */
 import { CortexMemClient } from './client.js';
 import type { ContextEngineConfig } from './config.js';
@@ -20,7 +26,7 @@ export type ContextEngineInfo = {
     id: string;
     name: string;
     version: string;
-    ownsCompaction: true;
+    ownsCompaction: false;
 };
 export type IngestResult = {
     ingested: boolean;
@@ -58,6 +64,7 @@ export declare class ContextEngine {
     private client;
     private logger;
     private sessionBuffers;
+    private recallStates;
     constructor(info: ContextEngineInfo, config: ContextEngineConfig, client: CortexMemClient, logger: Logger);
     getInfo(): ContextEngineInfo;
     ingest(params: {
@@ -85,7 +92,22 @@ export declare class ContextEngine {
         runtimeContext?: Record<string, unknown>;
         sessionKey?: string;
     }): Promise<void>;
+    /**
+     * Evaluate whether to trigger commit based on local state.
+     * No network calls needed.
+     */
+    private shouldTriggerCommit;
+    /**
+     * Trigger commit asynchronously (fire and forget).
+     * Does not block the current turn.
+     */
+    private triggerCommitAsync;
     private extractMessageContent;
+    /**
+     * Compact is delegated to OpenClaw runtime (ownsCompaction: false).
+     * This method is called by OpenClaw after it compacts the conversation.
+     * We use it as a signal to potentially close the session.
+     */
     compact(params: {
         sessionId: string;
         sessionFile: string;

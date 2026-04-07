@@ -491,17 +491,10 @@ export class ContextEngine {
 				this.logger.warn(`[context-engine] Commit failed: ${err}`);
 			})
 			.finally(() => {
-				try {
-					// Reset commit state — wrapped in try/catch to prevent unhandled rejection
-					buffer.isCommitting = false;
-					buffer.lastCommitAt = new Date();
-					buffer.pendingTokens = 0;
-				} catch (resetErr) {
-					this.logger.error(`[context-engine] Failed to reset commit state: ${resetErr}`);
-					// Force reset to avoid permanent lock
-					buffer.isCommitting = false;
-					buffer.pendingTokens = 0;
-				}
+				// Reset commit state
+				buffer.isCommitting = false;
+				buffer.lastCommitAt = new Date();
+				buffer.pendingTokens = 0;
 			});
 	}
 
@@ -591,13 +584,10 @@ export class ContextEngine {
 					this.logger.warn(`[context-engine] Session close failed: ${err}`);
 				});
 
-			// Reset buffer
-			if (buffer) {
-				buffer.pendingMessages = [];
-				buffer.pendingTokens = 0;
-				buffer.messageCount = 0;
-				buffer.lastCommitAt = new Date();
-			}
+			// Clean up session buffer to prevent memory leak
+			// Compact marks the end of a session lifecycle
+			this.sessionBuffers.delete(params.sessionId);
+			this.recallStates.delete(params.sessionId);
 
 			return {
 				ok: true,

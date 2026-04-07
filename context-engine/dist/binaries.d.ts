@@ -16,7 +16,7 @@ export interface ServiceStatus {
 export declare function checkServiceStatus(): Promise<ServiceStatus>;
 export declare function startQdrant(log?: (msg: string) => void): Promise<void>;
 export declare function startCortexMemService(log?: (msg: string) => void): Promise<void>;
-export declare function stopAllServices(): void;
+export declare function stopAllServices(log?: (msg: string) => void): void;
 export declare function ensureAllServices(log?: (msg: string) => void): Promise<ServiceStatus>;
 export declare function getCliPath(): string | null;
 export interface CliResult {

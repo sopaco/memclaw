@@ -35,9 +35,6 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getDataDir = getDataDir;
 exports.getConfigPath = getConfigPath;
@@ -46,20 +43,15 @@ exports.parsePluginConfig = parsePluginConfig;
 exports.generateConfigTemplate = generateConfigTemplate;
 exports.ensureConfigExists = ensureConfigExists;
 exports.openConfigFile = openConfigFile;
-exports.parseConfig = parseConfig;
-exports.validateConfig = validateConfig;
-exports.updateConfigFromPlugin = updateConfigFromPlugin;
-exports.mergeConfigWithPlugin = mergeConfigWithPlugin;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const os = __importStar(require("os"));
 const child_process_1 = require("child_process");
-const smol_toml_1 = __importDefault(require("smol-toml"));
 // ==================== Paths ====================
 function getDataDir() {
     const platform = process.platform;
     if (platform === 'win32') {
-        return path.join(process.env.LOCALAPPAL || path.join(os.homedir(), 'AppData', 'Local'), 'memclaw');
+        return path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'memclaw');
     }
     else if (platform === 'darwin') {
         return path.join(os.homedir(), 'Library', 'Application Support', 'memclaw');
@@ -81,11 +73,10 @@ function getDefaultContextEngineConfig() {
         recallWindow: 5,
         recallLimit: 10,
         recallMinScore: 0.65,
-        recallTokenBudget: 2000,
         autoCapture: true,
         commitTokenThreshold: 50000,
         commitTurnThreshold: 20,
-        recentRawTurnCount: 8
+        commitIntervalMs: 30 * 60 * 1000, // 30 minutes
     };
 }
 function parsePluginConfig(rawConfig) {
@@ -99,17 +90,10 @@ function parsePluginConfig(rawConfig) {
         recallWindow: rawConfig.recallWindow ?? defaults.recallWindow,
         recallLimit: rawConfig.recallLimit ?? defaults.recallLimit,
         recallMinScore: rawConfig.recallMinScore ?? defaults.recallMinScore,
-        recallTokenBudget: rawConfig.recallTokenBudget ?? defaults.recallTokenBudget,
         autoCapture: rawConfig.autoCapture ?? defaults.autoCapture,
         commitTokenThreshold: rawConfig.commitTokenThreshold ?? defaults.commitTokenThreshold,
         commitTurnThreshold: rawConfig.commitTurnThreshold ?? defaults.commitTurnThreshold,
-        recentRawTurnCount: rawConfig.recentRawTurnCount ?? defaults.recentRawTurnCount,
-        llmApiBaseUrl: rawConfig.llmApiBaseUrl,
-        llmApiKey: rawConfig.llmApiKey,
-        llmModel: rawConfig.llmModel,
-        embeddingApiBaseUrl: rawConfig.embeddingApiBaseUrl,
-        embeddingApiKey: rawConfig.embeddingApiKey,
-        embeddingModel: rawConfig.embeddingModel
+        commitIntervalMs: rawConfig.commitIntervalMs ?? defaults.commitIntervalMs,
     };
 }
 // ==================== Config File Management ====================
@@ -192,122 +176,5 @@ function openConfigFile(configPath) {
         proc.unref();
         resolve();
     });
-}
-function parseConfig(configPath) {
-    const content = fs.readFileSync(configPath, 'utf-8');
-    let parsed;
-    try {
-        parsed = smol_toml_1.default.parse(content);
-    }
-    catch (error) {
-        console.error('Failed to parse config.toml:', error);
-        parsed = {};
-    }
-    return {
-        qdrant: {
-            url: 'http://localhost:6334',
-            collection_name: 'memclaw',
-            timeout_secs: 30,
-            ...(parsed.qdrant || {})
-        },
-        llm: {
-            api_base_url: 'https://api.openai.com/v1',
-            api_key: '',
-            model_efficient: 'gpt-5-mini',
-            temperature: 0.1,
-            max_tokens: 4096,
-            ...(parsed.llm || {})
-        },
-        embedding: {
-            api_base_url: 'https://api.openai.com/v1',
-            api_key: '',
-            model_name: 'text-embedding-3-small',
-            batch_size: 10,
-            timeout_secs: 30,
-            ...(parsed.embedding || {})
-        },
-        server: {
-            host: 'localhost',
-            port: 8085,
-            ...(parsed.server || {})
-        },
-        logging: {
-            enabled: false,
-            log_directory: 'logs',
-            level: 'info',
-            ...(parsed.logging || {})
-        },
-        cortex: {
-            enable_intent_analysis: false,
-            ...(parsed.cortex || {})
-        }
-    };
-}
-function validateConfig(config) {
-    const errors = [];
-    if (!config.llm.api_key || config.llm.api_key === '') {
-        errors.push('llm.api_key is required');
-    }
-    if (!config.embedding.api_key || config.embedding.api_key === '') {
-        if (config.llm.api_key && config.llm.api_key !== '') {
-            config.embedding.api_key = config.llm.api_key;
-        }
-        else {
-            errors.push('embedding.api_key is required');
-        }
-    }
-    return { valid: errors.length === 0, errors };
-}
-function updateConfigFromPlugin(pluginConfig) {
-    const configPath = getConfigPath();
-    ensureConfigExists();
-    const existingConfig = parseConfig(configPath);
-    const updatedConfig = {
-        qdrant: existingConfig.qdrant,
-        llm: {
-            ...existingConfig.llm,
-            api_base_url: pluginConfig.llmApiBaseUrl || existingConfig.llm.api_base_url,
-            api_key: pluginConfig.llmApiKey || existingConfig.llm.api_key,
-            model_efficient: pluginConfig.llmModel || existingConfig.llm.model_efficient
-        },
-        embedding: {
-            ...existingConfig.embedding,
-            api_base_url: pluginConfig.embeddingApiBaseUrl || existingConfig.embedding.api_base_url,
-            api_key: pluginConfig.embeddingApiKey || existingConfig.embedding.api_key,
-            model_name: pluginConfig.embeddingModel || existingConfig.embedding.model_name
-        },
-        server: existingConfig.server,
-        logging: existingConfig.logging,
-        cortex: existingConfig.cortex
-    };
-    const hasChanges = (pluginConfig.llmApiKey && pluginConfig.llmApiKey !== existingConfig.llm.api_key) ||
-        (pluginConfig.llmApiBaseUrl && pluginConfig.llmApiBaseUrl !== existingConfig.llm.api_base_url) ||
-        (pluginConfig.llmModel && pluginConfig.llmModel !== existingConfig.llm.model_efficient) ||
-        (pluginConfig.embeddingApiKey && pluginConfig.embeddingApiKey !== existingConfig.embedding.api_key) ||
-        (pluginConfig.embeddingApiBaseUrl && pluginConfig.embeddingApiBaseUrl !== existingConfig.embedding.api_base_url) ||
-        (pluginConfig.embeddingModel && pluginConfig.embeddingModel !== existingConfig.embedding.model_name);
-    if (!hasChanges) {
-        return { updated: false, path: configPath };
-    }
-    const tomlContent = smol_toml_1.default.stringify(updatedConfig);
-    fs.writeFileSync(configPath, tomlContent, 'utf-8');
-    return { updated: true, path: configPath };
-}
-function mergeConfigWithPlugin(fileConfig, pluginConfig) {
-    return {
-        ...fileConfig,
-        llm: {
-            ...fileConfig.llm,
-            api_base_url: pluginConfig.llmApiBaseUrl || fileConfig.llm.api_base_url,
-            api_key: pluginConfig.llmApiKey || fileConfig.llm.api_key,
-            model_efficient: pluginConfig.llmModel || fileConfig.llm.model_efficient
-        },
-        embedding: {
-            ...fileConfig.embedding,
-            api_base_url: pluginConfig.embeddingApiBaseUrl || fileConfig.embedding.api_base_url,
-            api_key: pluginConfig.embeddingApiKey || fileConfig.embedding.api_key,
-            model_name: pluginConfig.embeddingModel || fileConfig.embedding.model_name
-        }
-    };
 }
 //# sourceMappingURL=config.js.map
