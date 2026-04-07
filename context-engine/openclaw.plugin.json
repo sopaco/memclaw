@@ -4,6 +4,7 @@
   "version": "0.9.50",
   "description": "Native context management for OpenClaw with automatic recall, capture, and compaction powered by Cortex Memory",
   "kind": "context-engine",
+  "skills": ["skills/memclaw-context-engine"],
   "platforms": ["darwin-arm64", "win-x64", "linux-x64"],
   "osRestriction": ["darwin-arm64", "win-x64", "linux-x64"],
   "configSchema": {
