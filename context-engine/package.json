@@ -1,71 +1,72 @@
 {
-  "name": "@memclaw/memclaw-context-engine",
-  "version": "0.9.50",
-  "description": "MemClaw Context Engine - Native context management for OpenClaw with automatic recall and capture",
-  "homepage": "https://github.com/sopaco/cortex-mem",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/sopaco/memclaw.git",
-    "directory": "context-engine"
-  },
-  "bugs": {
-    "url": "https://github.com/sopaco/memclaw/issues"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch"
-  },
-  "keywords": [
-    "openclaw",
-    "context-engine",
-    "cortex-mem",
-    "memory",
-    "semantic-search",
-    "vector-search",
-    "ai",
-    "agent",
-    "open-viking"
-  ],
-  "author": "Sopaco",
-  "license": "MIT",
-  "openclaw": {
-    "id": "memclaw-context-engine",
-    "extensions": [
-      "dist/index.js"
-    ],
-    "build": {
-      "openclawVersion": "2026.3.8",
-      "pluginSdkVersion": "2026.3.8"
-    },
-    "compat": {
-      "pluginApi": ">=1.0.0",
-      "builtWithOpenClawVersion": "2026.3.8",
-      "pluginSdkVersion": "2026.3.8",
-      "minGatewayVersion": "2026.3.8"
-    }
-  },
-  "devDependencies": {
-    "@types/node": "^22.0.0",
-    "typescript": "^5.7.0"
-  },
-  "dependencies": {
-    "glob": "^11.0.0"
-  },
-  "optionalDependencies": {
-    "@memclaw/bin-darwin-arm64": "0.1.9",
-    "@memclaw/bin-win-x64": "0.1.9",
-    "@memclaw/bin-linux-x64": "0.1.9"
-  },
-  "engines": {
-    "node": ">=20.0.0"
-  },
-  "files": [
-    "dist/",
-    "openclaw.plugin.json"
-  ]
+	"name": "@memclaw/memclaw-context-engine",
+	"version": "0.9.51",
+	"description": "MemClaw Context Engine - Native context management for OpenClaw with automatic recall and capture",
+	"homepage": "https://github.com/sopaco/cortex-mem",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/sopaco/memclaw.git",
+		"directory": "context-engine"
+	},
+	"bugs": {
+		"url": "https://github.com/sopaco/memclaw/issues"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"scripts": {
+		"build": "tsc",
+		"dev": "tsc --watch"
+	},
+	"keywords": [
+		"openclaw",
+		"context-engine",
+		"cortex-mem",
+		"memory",
+		"semantic-search",
+		"vector-search",
+		"ai",
+		"agent",
+		"open-viking"
+	],
+	"author": "Sopaco",
+	"license": "MIT",
+	"openclaw": {
+		"id": "memclaw-context-engine",
+		"extensions": [
+			"dist/index.js"
+		],
+		"build": {
+			"openclawVersion": "2026.3.8",
+			"pluginSdkVersion": "2026.3.8"
+		},
+		"compat": {
+			"pluginApi": ">=1.0.0",
+			"builtWithOpenClawVersion": "2026.3.8",
+			"pluginSdkVersion": "2026.3.8",
+			"minGatewayVersion": "2026.3.8"
+		}
+	},
+	"devDependencies": {
+		"@types/node": "^22.0.0",
+		"typescript": "^5.7.0"
+	},
+	"dependencies": {
+		"glob": "^11.0.0"
+	},
+	"optionalDependencies": {
+		"@memclaw/bin-darwin-arm64": "0.1.9",
+		"@memclaw/bin-win-x64": "0.1.9",
+		"@memclaw/bin-linux-x64": "0.1.9"
+	},
+	"engines": {
+		"node": ">=20.0.0"
+	},
+	"files": [
+		"dist/",
+		"skills/",
+		"openclaw.plugin.json"
+	]
 }
