@@ -80,7 +80,7 @@ memclaw/
 │   ├── openclaw.plugin.json
 │   └── README.md        #   Plugin 详细文档
 │
-├── context-engine/      # @memclaw/context-engine — Context Engine（主动上下文管理）
+├── context-engine/      # @memclaw/memclaw-context-engine — Context Engine（主动上下文管理）
 │   ├── dist/            #   构建产物
 │   ├── index.ts         #   插件入口
 │   ├── context-engine.ts #  Context Engine 生命周期实现
@@ -106,7 +106,7 @@ memclaw/
 | 目录 | NPM 包名 | 类型 | 定位 |
 |------|----------|------|------|
 | `plugin/` | `@memclaw/memclaw` | Memory Plugin (`kind: "memory"`) | 提供记忆工具，依赖 Agent 主动调用 |
-| `context-engine/` | `@memclaw/context-engine` | Context Engine (`kind: "context-engine"`) | 自动管理上下文，生命周期钩子驱动 |
+| `context-engine/` | `@memclaw/memclaw-context-engine` | Context Engine (`kind: "context-engine"`) | 自动管理上下文，生命周期钩子驱动 |
 | `bin-*/` | `@memclaw/bin-*` | 预编译二进制分发 | Qdrant + cortex-mem-service 开箱即用 |
 
 ---
@@ -262,7 +262,7 @@ openclaw plugins install @memclaw/memclaw
 
 ```bash
 # 从 npm 安装（包名待发布）
-openclaw plugins install @memclaw/context-engine
+openclaw plugins install @memclaw/memclaw-context-engine
 ```
 
 在 `openclaw.json` 中配置为 Context Engine：

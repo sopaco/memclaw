@@ -175,8 +175,8 @@ function isSimilarQuery(current: string, previous: string, threshold: number = 0
 		if (b.includes(word)) overlap++;
 	}
 
-	const maxLen = Math.max(a.filter(w => w.length >= 3).length, 1);
-	return (overlap / maxLen) >= threshold;
+	const maxLen = Math.max(a.filter((w) => w.length >= 3).length, 1);
+	return overlap / maxLen >= threshold;
 }
 
 // ==================== System Prompt Addition ====================
@@ -302,7 +302,7 @@ export class ContextEngine {
 
 		// Cooldown: skip if recalled within the last 60 seconds
 		const recallCooldownMs = 60_000;
-		if (state && (Date.now() - state.lastAt.getTime()) < recallCooldownMs) {
+		if (state && Date.now() - state.lastAt.getTime() < recallCooldownMs) {
 			this.logger.debug?.(`[context-engine] Auto-recall skipped (cooldown)`);
 			return null;
 		}
@@ -334,12 +334,14 @@ export class ContextEngine {
 			return [
 				{
 					role: 'assistant',
-					content: [{
-						type: 'toolUse',
-						id: 'auto-recall-001',
-						name: 'cortex_search',
-						input: { query }
-					}]
+					content: [
+						{
+							type: 'toolUse',
+							id: 'auto-recall-001',
+							name: 'cortex_search',
+							input: { query }
+						}
+					]
 				},
 				{
 					role: 'toolResult',
@@ -401,7 +403,7 @@ export class ContextEngine {
 		if (batch.length > 0) {
 			try {
 				const writeMessages = batch
-					.map(msg => {
+					.map((msg) => {
 						const content = this.extractMessageContent(msg);
 						if (!content) return null;
 						return {
@@ -452,9 +454,7 @@ export class ContextEngine {
 
 		// Message count threshold
 		if (buffer.messageCount >= this.config.commitTurnThreshold) {
-			this.logger.debug?.(
-				`[context-engine] Commit trigger: messages=${buffer.messageCount}`
-			);
+			this.logger.debug?.(`[context-engine] Commit trigger: messages=${buffer.messageCount}`);
 			return true;
 		}
 
@@ -479,14 +479,15 @@ export class ContextEngine {
 	private triggerCommitAsync(cortexSessionId: string, buffer: SessionBuffer): void {
 		buffer.isCommitting = true;
 
-		this.client.closeSession(cortexSessionId, false)
-			.then(result => {
+		this.client
+			.closeSession(cortexSessionId, false)
+			.then((result) => {
 				const memCount = Object.values(result.memories_extracted ?? {}).reduce((a, b) => a + b, 0);
 				this.logger.info(
 					`[context-engine] Commit completed: status=${result.status}, memories=${memCount}`
 				);
 			})
-			.catch(err => {
+			.catch((err) => {
 				this.logger.warn(`[context-engine] Commit failed: ${err}`);
 			})
 			.finally(() => {
@@ -511,10 +512,11 @@ export class ContextEngine {
 		}
 		if (Array.isArray(content)) {
 			return content
-				.filter((b): b is { type: 'text'; text: string } =>
-					b && typeof b === 'object' && b.type === 'text' && typeof b.text === 'string'
+				.filter(
+					(b): b is { type: 'text'; text: string } =>
+						b && typeof b === 'object' && b.type === 'text' && typeof b.text === 'string'
 				)
-				.map(b => b.text)
+				.map((b) => b.text)
 				.join('\n');
 		}
 		return '';
@@ -551,7 +553,7 @@ export class ContextEngine {
 				const flushBatch = buffer.pendingMessages.splice(0);
 				try {
 					const writeMessages = flushBatch
-						.map(msg => {
+						.map((msg) => {
 							const content = this.extractMessageContent(msg);
 							if (!content) return null;
 							return {
@@ -564,9 +566,7 @@ export class ContextEngine {
 					if (writeMessages.length > 0) {
 						const added = await this.client.addMessages(cortexSessionId, writeMessages);
 						buffer.messageCount += added;
-						this.logger.debug?.(
-							`[context-engine] Flushed ${added} pending messages before close`
-						);
+						this.logger.debug?.(`[context-engine] Flushed ${added} pending messages before close`);
 					}
 				} catch (err) {
 					this.logger.warn(`[context-engine] Failed to flush pending messages: ${err}`);
@@ -576,14 +576,18 @@ export class ContextEngine {
 			}
 
 			// Fire-and-forget close — don't block
-			this.client.closeSession(cortexSessionId, false)
-				.then(result => {
-					const memCount = Object.values(result.memories_extracted ?? {}).reduce((a, b) => a + b, 0);
+			this.client
+				.closeSession(cortexSessionId, false)
+				.then((result) => {
+					const memCount = Object.values(result.memories_extracted ?? {}).reduce(
+						(a, b) => a + b,
+						0
+					);
 					this.logger.info(
 						`[context-engine] Session closed: ${result.status}, memories=${memCount}`
 					);
 				})
-				.catch(err => {
+				.catch((err) => {
 					this.logger.warn(`[context-engine] Session close failed: ${err}`);
 				});
 
@@ -648,7 +652,7 @@ export function createContextEngine(
 	const info: ContextEngineInfo = {
 		id: 'memclaw-context-engine',
 		name: 'MemClaw Context Engine',
-		version: '0.2.0',
+		version: '0.9.50',
 		ownsCompaction: false // Delegated to OpenClaw runtime
 	};
 

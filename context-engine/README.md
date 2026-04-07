@@ -1,6 +1,6 @@
-# @memclaw/context-engine — Context Engine
+# @memclaw/memclaw-context-engine — Context Engine
 
-[![npm version](https://img.shields.io/npm/v/@memclaw/context-engine.svg)](https://www.npmjs.com/package/@memclaw/context-engine)
+[![npm version](https://img.shields.io/npm/v/@memclaw/memclaw-context-engine.svg)](https://www.npmjs.com/package/@memclaw/memclaw-context-engine)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![OpenClaw Compatible](https://img.shields.io/badge/OpenClaw-compatible-brightgreen)](https://github.com/openclaw/openclaw)
 
@@ -168,7 +168,7 @@ The Context Engine implements four lifecycle hooks that OpenClaw calls at specif
 ### From npm
 
 ```bash
-openclaw plugins install @memclaw/context-engine
+openclaw plugins install @memclaw/memclaw-context-engine
 ```
 
 Then configure in `openclaw.json`:
@@ -376,7 +376,7 @@ This ensures memory files are safely stored across all platforms.
 
 ## Memory Plugin vs Context Engine
 
-| Aspect | Memory Plugin (`@memclaw/memclaw`) | Context Engine (`@memclaw/context-engine`) |
+| Aspect | Memory Plugin (`@memclaw/memclaw`) | Context Engine (`@memclaw/memclaw-context-engine`) |
 |--------|-----------------------------------|-------------------------------------------|
 | **Kind** | `memory` | `context-engine` |
 | **Mode** | Passive — agent must call tools | Active — lifecycle hooks drive everything |
@@ -437,7 +437,7 @@ context-engine/
 ├── config.ts                   # Config: defaults, TOML generation, parsing, validation
 ├── binaries.ts                 # Binary resolution & service lifecycle management
 ├── tools.ts                    # Tool definitions (9 tools for explicit agent use)
-├── package.json                # NPM package manifest (@memclaw/context-engine v0.2.0)
+├── package.json                # NPM package manifest (@memclaw/memclaw-context-engine)
 ├── openclaw.plugin.json        # OpenClaw plugin manifest (kind: context-engine, configSchema)
 ├── tsconfig.json               # TypeScript config (ES2022, NodeNext, strict)
 ├── bun.lock                    # Bun lockfile

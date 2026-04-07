@@ -80,7 +80,7 @@ memclaw/
 │   ├── openclaw.plugin.json
 │   └── README.md        #   Plugin detailed documentation
 │
-├── context-engine/      # @memclaw/context-engine — Context Engine (active context management)
+├── context-engine/      # @memclaw/memclaw-context-engine — Context Engine (active context management)
 │   ├── dist/            #   Build artifacts
 │   ├── index.ts         #   Plugin entry point
 │   ├── context-engine.ts #  Context Engine lifecycle implementation
@@ -106,7 +106,7 @@ memclaw/
 | Directory | NPM Package Name | Type | Purpose |
 |-----------|------------------|------|---------|
 | `plugin/` | `@memclaw/memclaw` | Memory Plugin (`kind: "memory"`) | Provides memory tools, requires Agent to actively call them |
-| `context-engine/` | `@memclaw/context-engine` | Context Engine (`kind: "context-engine"`) | Automatically manages context, lifecycle hook driven |
+| `context-engine/` | `@memclaw/memclaw-context-engine` | Context Engine (`kind: "context-engine"`) | Automatically manages context, lifecycle hook driven |
 | `bin-*/` | `@memclaw/bin-*` | Pre-compiled binary distribution | Qdrant + cortex-mem-service ready to use out of the box |
 
 ---
@@ -262,7 +262,7 @@ For scenarios where you want **fully automatic context management**:
 
 ```bash
 # Install from npm (package name pending release)
-openclaw plugins install @memclaw/context-engine
+openclaw plugins install @memclaw/memclaw-context-engine
 ```
 
 Configure as Context Engine in `openclaw.json`:
