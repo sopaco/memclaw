@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { spawn, ChildProcess } from 'child_process';
 import { getDataDir } from './config.js';
+import { acquireServiceLock, writePidFile, removePidFile } from './lock.js';
 
 type BinaryName = 'qdrant' | 'cortex-mem-service' | 'cortex-mem-cli';
 type SupportedPlatform = 'darwin-arm64' | 'win-x64' | 'linux-x64';
@@ -148,64 +149,6 @@ async function isServiceRunning(port: number): Promise<boolean> {
 // ==================== Process Management ====================
 
 const runningProcesses: Map<string, ChildProcess> = new Map();
-
-// PID file management for cross-process coordination
-function getPidFilePath(serviceName: string): string {
-	const dataDir = getDataDir()
-	return path.join(dataDir, `${serviceName}.pid`)
-}
-
-function readPidFile(serviceName: string): number | null {
-	const pidPath = getPidFilePath(serviceName)
-	try {
-		const content = fs.readFileSync(pidPath, 'utf-8').trim()
-		const pid = parseInt(content, 10)
-		if (Number.isFinite(pid) && pid > 0) {
-			return pid
-		}
-	} catch {
-		// File doesn't exist or can't be read
-	}
-	return null
-}
-
-function writePidFile(serviceName: string, pid: number): void {
-	const pidPath = getPidFilePath(serviceName)
-	fs.writeFileSync(pidPath, String(pid), 'utf-8')
-}
-
-function removePidFile(serviceName: string): void {
-	const pidPath = getPidFilePath(serviceName)
-	try {
-		fs.unlinkSync(pidPath)
-	} catch {
-		// Ignore errors
-	}
-}
-
-function isProcessRunning(pid: number): boolean {
-	try {
-		// Sending signal 0 checks if process exists without killing it
-		process.kill(pid, 0)
-		return true
-	} catch {
-		return false
-	}
-}
-
-function acquireServiceLock(serviceName: string, log?: (msg: string) => void): boolean {
-	const existingPid = readPidFile(serviceName)
-	if (existingPid !== null) {
-		if (isProcessRunning(existingPid)) {
-			log?.(`${serviceName} is already running (PID: ${existingPid})`)
-			return false
-		}
-		// Stale PID file - process is dead, clean up
-		log?.(`Removing stale PID file for ${serviceName} (PID: ${existingPid})`)
-		removePidFile(serviceName)
-	}
-	return true
-}
 
 export async function startQdrant(log?: (msg: string) => void): Promise<void> {
 	// Use PID file lock to prevent race conditions across processes
