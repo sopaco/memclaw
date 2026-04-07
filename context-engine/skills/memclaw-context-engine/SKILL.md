@@ -16,7 +16,7 @@ description: MemClaw Context Engine — automatic long-term memory for OpenClaw.
 
 ## Prerequisites
 
-1. Install via `openclaw plugins install @memclaw/context-engine` if not present
+1. Install via `openclaw plugins install @memclaw/memclaw-context-engine` if not present
 2. Configure `plugins.slots.contextEngine: "memclaw-context-engine"` in `openclaw.json` to activate
 3. Fill in LLM/Embedding API keys in config (auto-opened on first run, or set in `openclaw.json`)
 4. Set `agents.defaults.memorySearch.enabled: false` in `openclaw.json` to avoid conflicts with built-in memory

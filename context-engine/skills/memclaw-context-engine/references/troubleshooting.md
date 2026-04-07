@@ -32,10 +32,10 @@ openclaw config set plugins.slots.contextEngine memclaw-context-engine
 **Fix:**
 ```bash
 # Check if plugin is installed
-npm ls @memclaw/context-engine
+npm ls @memclaw/memclaw-context-engine
 
 # Reinstall if missing
-openclaw plugins install @memclaw/context-engine
+openclaw plugins install @memclaw/memclaw-context-engine
 
 # Check for loading errors in OpenClaw logs
 ```
