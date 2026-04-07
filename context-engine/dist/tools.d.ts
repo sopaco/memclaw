@@ -1,5 +1,8 @@
 /**
  * Tool Definitions for MemClaw Context Engine
+ *
+ * Tools available for explicit model invocation.
+ * The Context Engine handles automatic recall; these tools are for manual operations.
  */
 import type { CortexMemClient } from './client.js';
 export interface ToolDefinition {

@@ -2,7 +2,10 @@
 /**
  * Cortex Mem Client for Context Engine
  *
- * Extended HTTP client for cortex-mem-service REST API with Context Engine support.
+ * HTTP client for cortex-mem-service REST API.
+ * Optimized for minimal token consumption:
+ * - Batch message writes
+ * - No polling or unnecessary API calls
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CortexMemClient = void 0;
@@ -81,13 +84,6 @@ class CortexMemClient {
         return response.data;
     }
     // ==================== Session Management ====================
-    async getSession(threadId) {
-        const response = await this.fetchJson(`/api/v2/sessions/${threadId}`);
-        if (!response.success || !response.data) {
-            throw new Error(response.error ?? 'Get session failed');
-        }
-        return response.data;
-    }
     async addMessage(threadId, message) {
         const response = await this.fetchJson(`/api/v2/sessions/${threadId}/messages`, {
             method: 'POST',
@@ -102,76 +98,52 @@ class CortexMemClient {
         }
         return response.data;
     }
-    async commitSession(threadId, options) {
-        const wait = options?.wait ?? false;
-        const timeoutMs = options?.timeoutMs ?? 120000;
+    /**
+     * Batch write messages to session timeline.
+     * Single HTTP call instead of N individual calls.
+     */
+    async addMessages(threadId, messages) {
+        if (messages.length === 0)
+            return 0;
+        const response = await this.fetchJson(`/api/v2/sessions/${threadId}/messages/bulk`, {
+            method: 'POST',
+            body: JSON.stringify({
+                messages: messages.map(m => ({
+                    role: m.role ?? 'user',
+                    content: m.content,
+                    metadata: m.metadata
+                }))
+            })
+        });
+        if (!response.success) {
+            // Fallback: write messages one by one
+            let added = 0;
+            for (const msg of messages) {
+                try {
+                    await this.addMessage(threadId, msg);
+                    added++;
+                }
+                catch (err) {
+                    // Log but continue — caller can compare returned count with input length
+                    console.error(`[cortex-mem] addMessages fallback: failed to write message: ${err}`);
+                }
+            }
+            return added;
+        }
+        return response.data?.added ?? messages.length;
+    }
+    /**
+     * Close session to trigger memory extraction.
+     * Non-blocking by default - fire and forget.
+     */
+    async closeSession(threadId, wait = false) {
+        const timeoutMs = wait ? 120000 : 10000;
         const response = await this.fetchJson(`/api/v2/sessions/${threadId}/close`, {
             method: 'POST',
             body: JSON.stringify({ wait })
         }, timeoutMs);
         if (!response.success || !response.data) {
-            throw new Error(response.error ?? 'Commit session failed');
-        }
-        const result = response.data;
-        // If wait=true and we have a task_id, poll for completion
-        if (wait && result.task_id && result.status === 'accepted') {
-            return this.pollCommitCompletion(threadId, result.task_id, timeoutMs);
-        }
-        return result;
-    }
-    async pollCommitCompletion(threadId, taskId, timeoutMs) {
-        const deadline = Date.now() + timeoutMs;
-        const pollInterval = 500;
-        while (Date.now() < deadline) {
-            await this.sleep(pollInterval);
-            const task = await this.getTask(taskId).catch(() => null);
-            if (!task)
-                break;
-            if (task.status === 'completed') {
-                return {
-                    thread_id: threadId,
-                    status: 'completed',
-                    message_count: 0,
-                    task_id: taskId,
-                    memories_extracted: task.result?.memories_extracted ?? {}
-                };
-            }
-            if (task.status === 'failed') {
-                return {
-                    thread_id: threadId,
-                    status: 'failed',
-                    message_count: 0,
-                    task_id: taskId,
-                    error: task.error ?? 'Unknown error'
-                };
-            }
-        }
-        return {
-            thread_id: threadId,
-            status: 'timeout',
-            message_count: 0,
-            task_id: taskId
-        };
-    }
-    async getTask(taskId) {
-        const response = await this.fetchJson(`/api/v2/tasks/${taskId}`);
-        if (!response.success || !response.data) {
-            throw new Error(response.error ?? 'Get task failed');
-        }
-        return response.data;
-    }
-    // ==================== Context Engine APIs ====================
-    async getSessionContext(sessionId, tokenBudget = 128000) {
-        const response = await this.fetchJson(`/api/v2/sessions/${sessionId}/context?token_budget=${tokenBudget}`);
-        if (!response.success || !response.data) {
-            throw new Error(response.error ?? 'Get session context failed');
-        }
-        return response.data;
-    }
-    async getSessionArchive(sessionId, archiveId) {
-        const response = await this.fetchJson(`/api/v2/sessions/${sessionId}/archives/${archiveId}`);
-        if (!response.success || !response.data) {
-            throw new Error(response.error ?? 'Get session archive failed');
+            throw new Error(response.error ?? 'Close session failed');
         }
         return response.data;
     }
@@ -228,9 +200,6 @@ class CortexMemClient {
         finally {
             clearTimeout(timer);
         }
-    }
-    sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
     }
 }
 exports.CortexMemClient = CortexMemClient;

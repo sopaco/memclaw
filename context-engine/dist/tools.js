@@ -1,6 +1,9 @@
 "use strict";
 /**
  * Tool Definitions for MemClaw Context Engine
+ *
+ * Tools available for explicit model invocation.
+ * The Context Engine handles automatic recall; these tools are for manual operations.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createTools = createTools;
@@ -116,9 +119,9 @@ Use this to persist important information that should be searchable later.`,
     },
     cortex_commit_session: {
         name: 'cortex_commit_session',
-        description: `Commit accumulated conversation content and trigger memory extraction.
+        description: `Close the current session to trigger memory extraction.
 
-This commits the session and triggers the complete memory processing pipeline:
+This closes the session and triggers the complete memory processing pipeline:
 1. Extracts structured memories (user preferences, entities, decisions)
 2. Generates complete L0/L1 layer summaries
 3. Indexes all extracted memories into the vector database
@@ -132,7 +135,7 @@ This commits the session and triggers the complete memory processing pipeline:
             properties: {
                 session_id: {
                     type: 'string',
-                    description: 'Session/thread ID to commit (uses default if not specified)'
+                    description: 'Session/thread ID to close (uses default if not specified)'
                 }
             }
         }
@@ -207,26 +210,6 @@ This allows you to explore the hierarchical structure of memories:
                 }
             },
             required: ['uri']
-        }
-    },
-    cortex_archive_expand: {
-        name: 'cortex_archive_expand',
-        description: `Retrieve original messages from a compressed session archive.
-
-Use when a session summary lacks specific details such as exact commands,
-file paths, code snippets, or config values.
-
-Check [Archive Index] in your context to find the right archive ID
-(archive_001 is oldest, higher numbers are more recent).`,
-        inputSchema: {
-            type: 'object',
-            properties: {
-                archive_id: {
-                    type: 'string',
-                    description: 'Archive ID from [Archive Index] (e.g. "archive_002")'
-                }
-            },
-            required: ['archive_id']
         }
     },
     cortex_forget: {
@@ -366,10 +349,10 @@ function createTools(client, config, logger) {
             const input = params;
             try {
                 const sessionId = input.session_id ?? config.defaultSessionId;
-                const result = await client.commitSession(sessionId, { wait: true });
+                const result = await client.closeSession(sessionId, true);
                 const memCount = Object.values(result.memories_extracted ?? {}).reduce((a, b) => a + b, 0);
                 return {
-                    content: `Session "${sessionId}" committed successfully.\nStatus: ${result.status}, Memories extracted: ${memCount}`,
+                    content: `Session "${sessionId}" closed successfully.\nStatus: ${result.status}, Memories extracted: ${memCount}`,
                     success: true,
                     session: {
                         thread_id: result.thread_id,
@@ -381,7 +364,7 @@ function createTools(client, config, logger) {
             catch (error) {
                 const message = error instanceof Error ? error.message : String(error);
                 logger.error(`[context-engine] cortex_commit_session failed: ${message}`);
-                return { error: `Failed to commit session: ${message}` };
+                return { error: `Failed to close session: ${message}` };
             }
         }
     });
@@ -499,42 +482,6 @@ function createTools(client, config, logger) {
                 const message = error instanceof Error ? error.message : String(error);
                 logger.error(`[context-engine] cortex_get_content failed: ${message}`);
                 return { error: `Get content failed: ${message}` };
-            }
-        }
-    });
-    // cortex_archive_expand
-    tools.set('cortex_archive_expand', {
-        name: 'cortex_archive_expand',
-        description: toolSchemas.cortex_archive_expand.description,
-        parameters: toolSchemas.cortex_archive_expand.inputSchema,
-        execute: async (_id, params) => {
-            const input = params;
-            try {
-                const sessionId = input.session_id ?? config.defaultSessionId;
-                const archive = await client.getSessionArchive(sessionId, input.archive_id);
-                const header = [
-                    `## ${archive.archive_id}`,
-                    archive.abstract ? `**Summary**: ${archive.abstract}` : '',
-                    `**Messages**: ${archive.messages.length}`
-                ].filter(Boolean).join('\n');
-                const body = archive.messages
-                    .map(m => {
-                    const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
-                    return `[${m.role}]: ${content}`;
-                })
-                    .join('\n\n');
-                return {
-                    content: `${header}\n\n${body}`,
-                    details: {
-                        archive_id: archive.archive_id,
-                        message_count: archive.messages.length
-                    }
-                };
-            }
-            catch (error) {
-                const message = error instanceof Error ? error.message : String(error);
-                logger.error(`[context-engine] cortex_archive_expand failed: ${message}`);
-                return { error: `Archive expand failed: ${message}` };
             }
         }
     });

@@ -169,7 +169,67 @@ async function isServiceRunning(port) {
 }
 // ==================== Process Management ====================
 const runningProcesses = new Map();
+// PID file management for cross-process coordination
+function getPidFilePath(serviceName) {
+    const dataDir = (0, config_js_1.getDataDir)();
+    return path.join(dataDir, `${serviceName}.pid`);
+}
+function readPidFile(serviceName) {
+    const pidPath = getPidFilePath(serviceName);
+    try {
+        const content = fs.readFileSync(pidPath, 'utf-8').trim();
+        const pid = parseInt(content, 10);
+        if (Number.isFinite(pid) && pid > 0) {
+            return pid;
+        }
+    }
+    catch {
+        // File doesn't exist or can't be read
+    }
+    return null;
+}
+function writePidFile(serviceName, pid) {
+    const pidPath = getPidFilePath(serviceName);
+    fs.writeFileSync(pidPath, String(pid), 'utf-8');
+}
+function removePidFile(serviceName) {
+    const pidPath = getPidFilePath(serviceName);
+    try {
+        fs.unlinkSync(pidPath);
+    }
+    catch {
+        // Ignore errors
+    }
+}
+function isProcessRunning(pid) {
+    try {
+        // Sending signal 0 checks if process exists without killing it
+        process.kill(pid, 0);
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
+function acquireServiceLock(serviceName, log) {
+    const existingPid = readPidFile(serviceName);
+    if (existingPid !== null) {
+        if (isProcessRunning(existingPid)) {
+            log?.(`${serviceName} is already running (PID: ${existingPid})`);
+            return false;
+        }
+        // Stale PID file - process is dead, clean up
+        log?.(`Removing stale PID file for ${serviceName} (PID: ${existingPid})`);
+        removePidFile(serviceName);
+    }
+    return true;
+}
 async function startQdrant(log) {
+    // Use PID file lock to prevent race conditions across processes
+    if (!acquireServiceLock('qdrant', log)) {
+        return;
+    }
+    // Double-check via HTTP (in case another process started it)
     const status = await checkServiceStatus();
     if (status.qdrant) {
         log?.('Qdrant is already running');
@@ -218,9 +278,17 @@ log_level: INFO
     });
     proc.on('error', (err) => {
         log?.(`Qdrant error: ${err.message}`);
+        removePidFile('qdrant');
+    });
+    proc.on('exit', () => {
+        removePidFile('qdrant');
     });
     proc.unref();
     runningProcesses.set('qdrant', proc);
+    // Write PID file after spawn
+    if (proc.pid) {
+        writePidFile('qdrant', proc.pid);
+    }
     // Wait for Qdrant to start
     let retries = 30;
     while (retries > 0) {
@@ -235,6 +303,11 @@ log_level: INFO
     throw new Error('Qdrant failed to start within 15 seconds');
 }
 async function startCortexMemService(log) {
+    // Use PID file lock to prevent race conditions across processes
+    if (!acquireServiceLock('cortex-mem-service', log)) {
+        return;
+    }
+    // Double-check via HTTP (in case another process started it)
     const status = await checkServiceStatus();
     if (status.cortexMemService) {
         log?.('cortex-mem-service is already running');
@@ -268,9 +341,17 @@ async function startCortexMemService(log) {
     });
     proc.on('error', (err) => {
         log?.(`cortex-mem-service error: ${err.message}`);
+        removePidFile('cortex-mem-service');
+    });
+    proc.on('exit', () => {
+        removePidFile('cortex-mem-service');
     });
     proc.unref();
     runningProcesses.set('cortex-mem-service', proc);
+    // Write PID file after spawn
+    if (proc.pid) {
+        writePidFile('cortex-mem-service', proc.pid);
+    }
     // Wait for service to start
     let retries = 30;
     while (retries > 0) {
@@ -284,14 +365,15 @@ async function startCortexMemService(log) {
     }
     throw new Error('cortex-mem-service failed to start within 15 seconds');
 }
-function stopAllServices() {
+function stopAllServices(log) {
     for (const [name, proc] of runningProcesses) {
         try {
             proc.kill();
-            console.log(`Stopped ${name}`);
+            removePidFile(name);
+            log?.(`Stopped ${name}`);
         }
         catch (err) {
-            console.error(`Failed to stop ${name}:`, err);
+            log?.(`Failed to stop ${name}: ${err}`);
         }
     }
     runningProcesses.clear();

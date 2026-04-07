@@ -1,7 +1,10 @@
 /**
  * Cortex Mem Client for Context Engine
  *
- * Extended HTTP client for cortex-mem-service REST API with Context Engine support.
+ * HTTP client for cortex-mem-service REST API.
+ * Optimized for minimal token consumption:
+ * - Batch message writes
+ * - No polling or unnecessary API calls
  */
 /** Layer types */
 export type Layer = 'L0' | 'L1' | 'L2';
@@ -53,8 +56,6 @@ export interface SessionInfo {
     message_count: number;
     created_at: string;
     updated_at: string;
-    pending_tokens?: number;
-    last_commit_at?: string;
 }
 export interface AddMessageOptions {
     content: string;
@@ -72,61 +73,6 @@ export interface CommitSessionResult {
     memories_extracted?: Record<string, number>;
     error?: string;
 }
-export interface SessionContextResult {
-    latest_archive_overview: string;
-    pre_archive_abstracts: PreArchiveAbstract[];
-    messages: ContextMessage[];
-    estimatedTokens: number;
-    stats: {
-        totalArchives: number;
-        includedArchives: number;
-        activeTokens: number;
-        archiveTokens: number;
-    };
-}
-export interface PreArchiveAbstract {
-    archive_id: string;
-    abstract: string;
-}
-export interface ContextMessage {
-    id: string;
-    role: string;
-    content: string | ContentBlock[];
-    created_at: string;
-}
-export interface ContentBlock {
-    type: 'text' | 'toolUse' | 'toolResult';
-    text?: string;
-    id?: string;
-    name?: string;
-    input?: unknown;
-    toolCallId?: string;
-    content?: ContentBlock[];
-    isError?: boolean;
-}
-export interface SessionArchiveResult {
-    archive_id: string;
-    abstract: string;
-    overview: string;
-    messages: ContextMessage[];
-}
-export interface ArchiveMessage {
-    id: string;
-    role: string;
-    parts: MessagePart[];
-    created_at: string;
-}
-export interface MessagePart {
-    type: 'text' | 'tool' | 'context';
-    text?: string;
-    tool_id?: string;
-    tool_name?: string;
-    tool_input?: unknown;
-    tool_output?: string;
-    tool_status?: string;
-    uri?: string;
-    abstract?: string;
-}
 export declare class CortexMemClient {
     private baseUrl;
     private timeoutMs;
@@ -137,26 +83,20 @@ export declare class CortexMemClient {
     getAbstract(uri: string): Promise<LayerResponse>;
     getOverview(uri: string): Promise<LayerResponse>;
     getContent(uri: string): Promise<LayerResponse>;
-    getSession(threadId: string): Promise<SessionInfo>;
     addMessage(threadId: string, message: AddMessageOptions): Promise<string>;
-    commitSession(threadId: string, options?: {
-        wait?: boolean;
-        timeoutMs?: number;
-    }): Promise<CommitSessionResult>;
-    private pollCommitCompletion;
-    getTask(taskId: string): Promise<{
-        status: string;
-        result?: {
-            memories_extracted?: Record<string, number>;
-        };
-        error?: string;
-    }>;
-    getSessionContext(sessionId: string, tokenBudget?: number): Promise<SessionContextResult>;
-    getSessionArchive(sessionId: string, archiveId: string): Promise<SessionArchiveResult>;
+    /**
+     * Batch write messages to session timeline.
+     * Single HTTP call instead of N individual calls.
+     */
+    addMessages(threadId: string, messages: AddMessageOptions[]): Promise<number>;
+    /**
+     * Close session to trigger memory extraction.
+     * Non-blocking by default - fire and forget.
+     */
+    closeSession(threadId: string, wait?: boolean): Promise<CommitSessionResult>;
     switchTenant(tenantId: string): Promise<void>;
     deleteUri(uri: string): Promise<void>;
     healthCheck(): Promise<boolean>;
     private fetchJson;
-    private sleep;
 }
 //# sourceMappingURL=client.d.ts.map
