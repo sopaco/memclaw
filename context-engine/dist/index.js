@@ -67,43 +67,45 @@ function createPlugin(api) {
     // Create client
     const client = new client_js_1.CortexMemClient(config.serviceUrl);
     let servicesStarted = false;
+    // Service start function (extracted for reuse)
+    const startServices = async () => {
+        // Skip service startup if config was just created (first run)
+        if (created) {
+            log('First run detected. Please complete configuration and restart OpenClaw.');
+            return;
+        }
+        if (!config.autoStartServices) {
+            log('Auto-start disabled, skipping service startup');
+            return;
+        }
+        // Check if binaries are available
+        const hasQdrant = (0, binaries_js_1.isBinaryAvailable)('qdrant');
+        const hasService = (0, binaries_js_1.isBinaryAvailable)('cortex-mem-service');
+        if (!hasQdrant || !hasService) {
+            log('Some binaries are missing. Services may need manual setup.');
+        }
+        // Start services
+        try {
+            log('Starting services...');
+            await (0, binaries_js_1.ensureAllServices)(log);
+            // Switch tenant
+            await client.switchTenant(config.tenantId);
+            log(`Switched to tenant: ${config.tenantId}`);
+            servicesStarted = true;
+            log('MemClaw Context Engine services started successfully');
+        }
+        catch (err) {
+            api.logger.error(`[memclaw-context-engine] Failed to start services: ${err}`);
+            api.logger.warn('[memclaw-context-engine] Context engine features may not work correctly');
+        }
+    };
     // Register service lifecycle
     api.registerService({
         id: 'memclaw-context-engine',
-        start: async () => {
-            // Skip service startup if config was just created (first run)
-            if (created) {
-                log('First run detected. Please complete configuration and restart OpenClaw.');
-                return;
-            }
-            if (!config.autoStartServices) {
-                log('Auto-start disabled, skipping service startup');
-                return;
-            }
-            // Check if binaries are available
-            const hasQdrant = (0, binaries_js_1.isBinaryAvailable)('qdrant');
-            const hasService = (0, binaries_js_1.isBinaryAvailable)('cortex-mem-service');
-            if (!hasQdrant || !hasService) {
-                log('Some binaries are missing. Services may need manual setup.');
-            }
-            // Start services
-            try {
-                log('Starting services...');
-                await (0, binaries_js_1.ensureAllServices)(log);
-                // Switch tenant
-                await client.switchTenant(config.tenantId);
-                log(`Switched to tenant: ${config.tenantId}`);
-                servicesStarted = true;
-                log('MemClaw Context Engine services started successfully');
-            }
-            catch (err) {
-                api.logger.error(`[memclaw-context-engine] Failed to start services: ${err}`);
-                api.logger.warn('[memclaw-context-engine] Context engine features may not work correctly');
-            }
-        },
+        start: startServices,
         stop: async () => {
             log('Stopping MemClaw Context Engine...');
-            (0, binaries_js_1.stopAllServices)();
+            (0, binaries_js_1.stopAllServices)(log);
             servicesStarted = false;
         }
     });
@@ -147,6 +149,11 @@ function createPlugin(api) {
     log(`Registered ${tools.size} tools`);
     // Log ready message
     log('MemClaw Context Engine ready');
+    // Start services immediately (fire-and-forget)
+    // This ensures services are started even if registerService.start is not called by OpenClaw
+    startServices().catch((err) => {
+        api.logger.error(`[memclaw-context-engine] Service startup error: ${err}`);
+    });
 }
 // ==================== Exports ====================
 var client_js_2 = require("./client.js");

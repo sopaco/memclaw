@@ -95,48 +95,51 @@ export function createPlugin(api: OpenClawPluginApi) {
 	const client = new CortexMemClient(config.serviceUrl);
 	let servicesStarted = false;
 
+	// Service start function (extracted for reuse)
+	const startServices = async () => {
+		// Skip service startup if config was just created (first run)
+		if (created) {
+			log('First run detected. Please complete configuration and restart OpenClaw.');
+			return;
+		}
+
+		if (!config.autoStartServices) {
+			log('Auto-start disabled, skipping service startup');
+			return;
+		}
+
+		// Check if binaries are available
+		const hasQdrant = isBinaryAvailable('qdrant');
+		const hasService = isBinaryAvailable('cortex-mem-service');
+
+		if (!hasQdrant || !hasService) {
+			log('Some binaries are missing. Services may need manual setup.');
+		}
+
+		// Start services
+		try {
+			log('Starting services...');
+			await ensureAllServices(log);
+
+			// Switch tenant
+			await client.switchTenant(config.tenantId);
+			log(`Switched to tenant: ${config.tenantId}`);
+
+			servicesStarted = true;
+			log('MemClaw Context Engine services started successfully');
+		} catch (err) {
+			api.logger.error(`[memclaw-context-engine] Failed to start services: ${err}`);
+			api.logger.warn('[memclaw-context-engine] Context engine features may not work correctly');
+		}
+	};
+
 	// Register service lifecycle
 	api.registerService({
 		id: 'memclaw-context-engine',
-		start: async () => {
-			// Skip service startup if config was just created (first run)
-			if (created) {
-				log('First run detected. Please complete configuration and restart OpenClaw.');
-				return;
-			}
-
-			if (!config.autoStartServices) {
-				log('Auto-start disabled, skipping service startup');
-				return;
-			}
-
-			// Check if binaries are available
-			const hasQdrant = isBinaryAvailable('qdrant');
-			const hasService = isBinaryAvailable('cortex-mem-service');
-
-			if (!hasQdrant || !hasService) {
-				log('Some binaries are missing. Services may need manual setup.');
-			}
-
-			// Start services
-			try {
-				log('Starting services...');
-				await ensureAllServices(log);
-
-				// Switch tenant
-				await client.switchTenant(config.tenantId);
-				log(`Switched to tenant: ${config.tenantId}`);
-
-				servicesStarted = true;
-				log('MemClaw Context Engine services started successfully');
-			} catch (err) {
-				api.logger.error(`[memclaw-context-engine] Failed to start services: ${err}`);
-				api.logger.warn('[memclaw-context-engine] Context engine features may not work correctly');
-			}
-		},
+		start: startServices,
 		stop: async () => {
 			log('Stopping MemClaw Context Engine...');
-			stopAllServices();
+			stopAllServices(log);
 			servicesStarted = false;
 		}
 	});
@@ -189,6 +192,12 @@ export function createPlugin(api: OpenClawPluginApi) {
 
 	// Log ready message
 	log('MemClaw Context Engine ready');
+
+	// Start services immediately (fire-and-forget)
+	// This ensures services are started even if registerService.start is not called by OpenClaw
+	startServices().catch((err) => {
+		api.logger.error(`[memclaw-context-engine] Service startup error: ${err}`);
+	});
 }
 
 // ==================== Exports ====================
