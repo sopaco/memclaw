@@ -25,6 +25,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getDefaultContextEngineConfig = exports.parsePluginConfig = exports.createTools = exports.openClawSessionToCortexId = exports.createContextEngine = exports.CortexMemClient = void 0;
 exports.createPlugin = createPlugin;
+exports.register = register;
 const client_js_1 = require("./client.js");
 const config_js_1 = require("./config.js");
 const binaries_js_1 = require("./binaries.js");
@@ -159,6 +160,10 @@ var config_js_2 = require("./config.js");
 Object.defineProperty(exports, "parsePluginConfig", { enumerable: true, get: function () { return config_js_2.parsePluginConfig; } });
 Object.defineProperty(exports, "getDefaultContextEngineConfig", { enumerable: true, get: function () { return config_js_2.getDefaultContextEngineConfig; } });
 __exportStar(require("./binaries.js"), exports);
-// Default export for plugin entry point
-exports.default = { createPlugin };
+// Register function - OpenClaw plugin entry point
+function register(api) {
+    createPlugin(api);
+}
+// Default export for backward compatibility
+exports.default = { createPlugin, register };
 //# sourceMappingURL=index.js.map

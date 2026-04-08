@@ -199,5 +199,10 @@ export { createTools } from './tools.js';
 export { parsePluginConfig, getDefaultContextEngineConfig, type ContextEngineConfig } from './config.js';
 export * from './binaries.js';
 
-// Default export for plugin entry point
-export default { createPlugin };
+// Register function - OpenClaw plugin entry point
+export function register(api: OpenClawPluginApi) {
+	createPlugin(api);
+}
+
+// Default export for backward compatibility
+export default { createPlugin, register };

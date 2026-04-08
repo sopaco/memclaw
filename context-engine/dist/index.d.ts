@@ -45,8 +45,10 @@ export { createContextEngine, openClawSessionToCortexId } from './context-engine
 export { createTools } from './tools.js';
 export { parsePluginConfig, getDefaultContextEngineConfig, type ContextEngineConfig } from './config.js';
 export * from './binaries.js';
+export declare function register(api: OpenClawPluginApi): void;
 declare const _default: {
     createPlugin: typeof createPlugin;
+    register: typeof register;
 };
 export default _default;
 //# sourceMappingURL=index.d.ts.map
