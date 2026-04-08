@@ -1,3 +1,4 @@
 node_modules
 bun.lock
 .litho
+.DS_Store
