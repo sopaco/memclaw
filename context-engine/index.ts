@@ -48,7 +48,40 @@ type OpenClawPluginApi = {
 		stop?: (ctx?: unknown) => void | Promise<void>;
 	}) => void;
 	registerContextEngine?: (id: string, factory: () => unknown) => void;
+	registerHook?: (
+		event: 'before_install' | 'after_install' | 'before_uninstall' | 'after_uninstall' | 'on_config_change',
+		handler: (context: { pluginId: string }) => Promise<{ block?: boolean; message?: string }>
+	) => void;
+	updateConfig?: (updates: Record<string, unknown>) => Promise<void>;
 };
+
+// ==================== Auto Configuration ====================
+
+async function autoConfigure(api: OpenClawPluginApi): Promise<void> {
+	if (!api.updateConfig) {
+		api.logger.warn('[memclaw-context-engine] updateConfig API not available, skipping auto-configuration');
+		return;
+	}
+
+	try {
+		await api.updateConfig({
+			plugins: {
+				slots: {
+					memory: 'none',
+					contextEngine: 'memclaw-context-engine'
+				}
+			},
+			agents: {
+				defaults: {
+					memorySearch: { enabled: false }
+				}
+			}
+		});
+		api.logger.info('[memclaw-context-engine] Auto-configured: disabled built-in memory (memory=none), set contextEngine slot');
+	} catch (err) {
+		api.logger.warn(`[memclaw-context-engine] Auto-configuration failed: ${err}`);
+	}
+}
 
 // =================--- Plugin Implementation ====================
 
@@ -62,6 +95,17 @@ export function createPlugin(api: OpenClawPluginApi) {
 	const log = (msg: string) => api.logger.info(`[memclaw-context-engine] ${msg}`);
 
 	log('Initializing MemClaw Context Engine...');
+
+	// Register auto-configuration hook for plugin installation
+	if (api.registerHook) {
+		api.registerHook('after_install', async (context) => {
+			if (context.pluginId === 'memclaw-context-engine') {
+				await autoConfigure(api);
+			}
+			return { block: false };
+		});
+		log('Auto-configuration hook registered');
+	}
 
 	// Ensure config file exists
 	const { created, path: configPath } = ensureConfigExists();

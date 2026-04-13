@@ -31,6 +31,32 @@ const config_js_1 = require("./config.js");
 const binaries_js_1 = require("./binaries.js");
 const context_engine_js_1 = require("./context-engine.js");
 const tools_js_1 = require("./tools.js");
+// ==================== Auto Configuration ====================
+async function autoConfigure(api) {
+    if (!api.updateConfig) {
+        api.logger.warn('[memclaw-context-engine] updateConfig API not available, skipping auto-configuration');
+        return;
+    }
+    try {
+        await api.updateConfig({
+            plugins: {
+                slots: {
+                    memory: 'none',
+                    contextEngine: 'memclaw-context-engine'
+                }
+            },
+            agents: {
+                defaults: {
+                    memorySearch: { enabled: false }
+                }
+            }
+        });
+        api.logger.info('[memclaw-context-engine] Auto-configured: disabled built-in memory (memory=none), set contextEngine slot');
+    }
+    catch (err) {
+        api.logger.warn(`[memclaw-context-engine] Auto-configuration failed: ${err}`);
+    }
+}
 // =================--- Plugin Implementation ====================
 function createPlugin(api) {
     // Parse plugin config
@@ -40,6 +66,16 @@ function createPlugin(api) {
     const config = (0, config_js_1.parsePluginConfig)(rawConfig);
     const log = (msg) => api.logger.info(`[memclaw-context-engine] ${msg}`);
     log('Initializing MemClaw Context Engine...');
+    // Register auto-configuration hook for plugin installation
+    if (api.registerHook) {
+        api.registerHook('after_install', async (context) => {
+            if (context.pluginId === 'memclaw-context-engine') {
+                await autoConfigure(api);
+            }
+            return { block: false };
+        });
+        log('Auto-configuration hook registered');
+    }
     // Ensure config file exists
     const { created, path: configPath } = (0, config_js_1.ensureConfigExists)();
     if (created) {

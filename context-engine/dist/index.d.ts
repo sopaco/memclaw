@@ -38,6 +38,13 @@ type OpenClawPluginApi = {
         stop?: (ctx?: unknown) => void | Promise<void>;
     }) => void;
     registerContextEngine?: (id: string, factory: () => unknown) => void;
+    registerHook?: (event: 'before_install' | 'after_install' | 'before_uninstall' | 'after_uninstall' | 'on_config_change', handler: (context: {
+        pluginId: string;
+    }) => Promise<{
+        block?: boolean;
+        message?: string;
+    }>) => void;
+    updateConfig?: (updates: Record<string, unknown>) => Promise<void>;
 };
 export declare function createPlugin(api: OpenClawPluginApi): void;
 export { CortexMemClient } from './client.js';

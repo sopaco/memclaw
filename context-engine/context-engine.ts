@@ -183,11 +183,22 @@ function isSimilarQuery(current: string, previous: string, threshold: number = 0
 
 function buildSystemPromptAddition(): string {
 	return `
-## Memory Guide
+## MemClaw Memory
 
-Relevant memories from past conversations may appear as tool call results from \`cortex_search\`.
-Use them for context, but trust the current conversation for exact details.
-To search for more, use \`cortex_search\` or browse with \`cortex_ls\`.
+L0/L1/L2 tiered semantic memory with automatic recall/capture. See skill \`memclaw-context-engine\` for full docs.
+
+### Tools
+- \`cortex_search\` / \`cortex_recall\` — Semantic search with L0/L1/L2 control
+- \`cortex_add_memory\` — Explicitly store a memory
+- \`cortex_commit_session\` — Commit session and trigger extraction
+- \`cortex_ls\` — Browse memory filesystem
+- \`cortex_get_abstract/overview/content\` — Read L0/L1/L2 layers
+- \`cortex_forget\` — Delete a memory
+
+### Usage
+- Auto-recall runs before each response; trust it for context but verify in conversation
+- Call \`cortex_add_memory\` when user explicitly asks to remember something
+- Call \`cortex_commit_session\` after completing significant tasks
 `.trim();
 }
 
@@ -642,7 +653,7 @@ export function createContextEngine(
 	const info: ContextEngineInfo = {
 		id: 'memclaw-context-engine',
 		name: 'MemClaw Context Engine',
-		version: '0.9.53',
+		version: '0.9.55',
 		ownsCompaction: false // Delegated to OpenClaw runtime
 	};
 
