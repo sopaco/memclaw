@@ -501,85 +501,112 @@ export type MemoryPluginCapability = {
 }
 
 // =============================================================================
-// Memory Plugin Capability Implementation
+// Memory Plugin Capability Factory Functions (OpenClaw Official APIs)
 // =============================================================================
 
 /**
- * Create the MemoryPluginCapability object for registerMemoryCapability.
+ * Create memory prompt section builder for api.registerMemoryPromptSection.
+ * 
+ * This builds the system prompt section that guides agents on using Cortex Memory.
+ */
+export function createMemoryPromptSectionBuilder(): MemoryPromptSectionBuilder {
+  return ({ availableTools, citationsMode }) => {
+    if (!availableTools.has('cortex_search')) {
+      return []
+    }
+
+    const lines = [
+      '## Cortex Memory',
+      '',
+      'Use the Cortex Memory tools for semantic memory operations:',
+      '- `cortex_search` - Layered semantic search (L0/L1/L2)',
+      '- `cortex_recall` - Recall with full context',
+      '- `cortex_add_memory` - Store new memories',
+      '- `cortex_commit_session` - Commit and extract memories',
+      '',
+    ]
+
+    if (citationsMode !== 'off') {
+      lines.push('Citations are enabled. Search results include `citation` fields.')
+      lines.push('')
+    }
+
+    return lines
+  }
+}
+
+/**
+ * Create memory flush plan resolver for api.registerMemoryFlushPlan.
+ * 
+ * This determines when and how to flush memory during compaction.
+ */
+export function createMemoryFlushPlanResolver(): MemoryFlushPlanResolver {
+  return ({ cfg, nowMs }) => {
+    return {
+      softThresholdTokens: 8000,
+      forceFlushTranscriptBytes: 100000,
+      reserveTokensFloor: 2000,
+      prompt: 'Cortex memory flush',
+      systemPrompt: 'Summarize and extract memories from the conversation.',
+      relativePath: 'cortex/memory.md',
+    }
+  }
+}
+
+/**
+ * Create memory runtime for api.registerMemoryRuntime.
+ * 
+ * This provides the MemorySearchManager implementation that OpenClaw uses
+ * for memory operations.
+ */
+export function createMemoryRuntime(options: {
+  serviceUrl: string
+  tenantId: string
+}): MemoryPluginRuntime {
+  return {
+    getMemorySearchManager: async ({ cfg, agentId, purpose }) => {
+      // Extract config from cfg (OpenClawConfig)
+      const config = cfg as {
+        plugins?: {
+          entries?: Record<string, { config?: Record<string, unknown> }>
+        }
+      }
+
+      const pluginConfig = config?.plugins?.entries?.['memclaw']?.config ?? {}
+      const serviceUrl = (pluginConfig.serviceUrl as string) ?? options.serviceUrl
+      const tenantId = (pluginConfig.tenantId as string) ?? options.tenantId
+
+      return getMemorySearchManager({
+        serviceUrl,
+        tenantId,
+        agentId,
+      })
+    },
+
+    resolveMemoryBackendConfig: ({ cfg, agentId }) => {
+      return {
+        backend: 'cortex',
+      }
+    },
+
+    closeAllMemorySearchManagers,
+  }
+}
+
+/**
+ * @deprecated Use createMemoryPromptSectionBuilder, createMemoryFlushPlanResolver, 
+ * and createMemoryRuntime instead. This function is kept for backward compatibility.
+ * 
+ * Create the MemoryPluginCapability object for legacy registerMemoryCapability.
  */
 export function createMemoryPluginCapability(options: {
   serviceUrl: string
   tenantId: string
 }): MemoryPluginCapability {
   return {
-    // Prompt builder - adds Cortex memory usage guidance
-    promptBuilder: ({ availableTools, citationsMode }) => {
-      if (!availableTools.has('cortex_search')) {
-        return []
-      }
-
-      const lines = [
-        '## Cortex Memory',
-        '',
-        'Use the Cortex Memory tools for semantic memory operations:',
-        '- `cortex_search` - Layered semantic search (L0/L1/L2)',
-        '- `cortex_recall` - Recall with full context',
-        '- `cortex_add_memory` - Store new memories',
-        '- `cortex_commit_session` - Commit and extract memories',
-        '',
-      ]
-
-      if (citationsMode !== 'off') {
-        lines.push('Citations are enabled. Search results include `citation` fields.')
-        lines.push('')
-      }
-
-      return lines
-    },
-
-    // Flush plan resolver - determines when to flush memory
-    flushPlanResolver: ({ cfg, nowMs }) => {
-      return {
-        softThresholdTokens: 8000,
-        forceFlushTranscriptBytes: 100000,
-        reserveTokensFloor: 2000,
-        prompt: 'Cortex memory flush',
-        systemPrompt: 'Summarize and extract memories from the conversation.',
-        relativePath: 'cortex/memory.md',
-      }
-    },
-
-    // Runtime - provides MemorySearchManager
-    runtime: {
-      getMemorySearchManager: async ({ cfg, agentId, purpose }) => {
-        // Extract config from cfg (OpenClawConfig)
-        const config = cfg as {
-          plugins?: {
-            entries?: Record<string, { config?: Record<string, unknown> }>
-          }
-        }
-
-        const pluginConfig = config?.plugins?.entries?.['memclaw']?.config ?? {}
-        const serviceUrl = (pluginConfig.serviceUrl as string) ?? options.serviceUrl
-        const tenantId = (pluginConfig.tenantId as string) ?? options.tenantId
-
-        return getMemorySearchManager({
-          serviceUrl,
-          tenantId,
-          agentId,
-        })
-      },
-
-      resolveMemoryBackendConfig: ({ cfg, agentId }) => {
-        return {
-          backend: 'cortex',
-        }
-      },
-
-      closeAllMemorySearchManagers,
-    },
-
-    // Public artifacts - expose memory data
+    promptBuilder: createMemoryPromptSectionBuilder(),
+    flushPlanResolver: createMemoryFlushPlanResolver(),
+    runtime: createMemoryRuntime(options),
     publicArtifacts: {
       listArtifacts: async ({ cfg }) => {
         const config = cfg as {

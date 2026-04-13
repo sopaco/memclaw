@@ -27,8 +27,8 @@
  */
 export type { CortexMemClient } from './src/client.js';
 export type { MemClawConfig } from './src/config.js';
-export { CortexMemorySearchManager, getMemorySearchManager, closeAllMemorySearchManagers, createMemoryPluginCapability, } from './src/memory-adapter.js';
-export type { MemorySearchManager, MemorySearchResult, MemoryProviderStatus, MemoryPluginCapability, MemoryPluginRuntime, MemoryFlushPlan, MemoryCitationsMode, } from './src/memory-adapter.js';
+export { CortexMemorySearchManager, getMemorySearchManager, closeAllMemorySearchManagers, createMemoryPromptSectionBuilder, createMemoryFlushPlanResolver, createMemoryRuntime, createMemoryPluginCapability } from './src/memory-adapter.js';
+export type { MemorySearchManager, MemorySearchResult, MemoryProviderStatus, MemoryPluginCapability, MemoryPluginRuntime, MemoryFlushPlan, MemoryFlushPlanResolver, MemoryPromptSectionBuilder, MemoryCitationsMode } from './src/memory-adapter.js';
 interface PluginLogger {
     debug?: (msg: string, ...args: unknown[]) => void;
     info: (msg: string, ...args: unknown[]) => void;

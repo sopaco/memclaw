@@ -32,7 +32,13 @@ import { migrateFromOpenClaw, canMigrate } from './src/migrate.js';
 import { ensureAgentsMdEnhanced } from './src/agents-md-injector.js';
 import {
 	createMemoryPluginCapability,
-	type MemoryPluginCapability
+	createMemoryPromptSectionBuilder,
+	createMemoryFlushPlanResolver,
+	createMemoryRuntime,
+	type MemoryPluginCapability,
+	type MemoryPromptSectionBuilder,
+	type MemoryFlushPlanResolver,
+	type MemoryPluginRuntime,
 } from './src/memory-adapter.js';
 
 // Plugin configuration
@@ -84,8 +90,14 @@ interface PluginAPI {
 	) => void;
 	updateConfig?: (updates: Record<string, unknown>) => Promise<void>;
 	logger: PluginLogger;
-	/** Register memory capability (OpenClaw memory plugin API) */
+	/** Register memory capability (modern recommended API for memory plugins) */
 	registerMemoryCapability?: (capability: MemoryPluginCapability) => void;
+	/** @deprecated Legacy - use registerMemoryCapability instead */
+	registerMemoryPromptSection?: (builder: MemoryPromptSectionBuilder) => void;
+	/** @deprecated Legacy - use registerMemoryCapability instead */
+	registerMemoryFlushPlan?: (resolver: MemoryFlushPlanResolver) => void;
+	/** @deprecated Legacy - use registerMemoryCapability instead */
+	registerMemoryRuntime?: (runtime: MemoryPluginRuntime) => void;
 }
 
 interface ToolDefinition {
@@ -519,14 +531,30 @@ export function createPlugin(api: PluginAPI) {
 
 	log('Initializing MemClaw plugin...');
 
-	// Register memory capability if OpenClaw supports it
+	// Register memory capability using the modern recommended unified API
+	// Fallback to legacy separate registration APIs if unified API is not available
 	if (api.registerMemoryCapability) {
+		// Modern unified API (recommended)
 		const capability = createMemoryPluginCapability({
 			serviceUrl,
 			tenantId,
 		});
 		api.registerMemoryCapability(capability);
-		log('Memory capability registered with OpenClaw');
+		log('Memory capability registered (unified API)');
+	} else {
+		// Legacy separate APIs (backward compatibility)
+		if (api.registerMemoryPromptSection) {
+			api.registerMemoryPromptSection(createMemoryPromptSectionBuilder());
+			log('Memory prompt section registered (legacy API)');
+		}
+		if (api.registerMemoryFlushPlan) {
+			api.registerMemoryFlushPlan(createMemoryFlushPlanResolver());
+			log('Memory flush plan registered (legacy API)');
+		}
+		if (api.registerMemoryRuntime) {
+			api.registerMemoryRuntime(createMemoryRuntime({ serviceUrl, tenantId }));
+			log('Memory runtime registered (legacy API)');
+		}
 	}
 
 	// Register auto-configuration hook for plugin installation
