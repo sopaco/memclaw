@@ -1,7 +1,7 @@
 {
 	"id": "memclaw-context-engine",
 	"name": "MemClaw Context Engine",
-	"version": "0.9.55",
+	"version": "0.9.56",
 	"description": "Native context management for OpenClaw with automatic recall, capture, and compaction powered by Cortex Memory",
 	"kind": "context-engine",
 	"skills": ["skills/memclaw-context-engine"],
