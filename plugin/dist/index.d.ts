@@ -50,6 +50,15 @@ interface PluginAPI {
         start: () => Promise<void>;
         stop: () => Promise<void>;
     }): void;
+    registerHook?: (event: 'before_install' | 'after_install' | 'before_uninstall' | 'after_uninstall' | 'on_config_change', handler: (context: {
+        pluginId: string;
+    }) => Promise<{
+        block?: boolean;
+        message?: string;
+    }>, opt: {
+        name: string;
+    }) => void;
+    updateConfig?: (updates: Record<string, unknown>) => Promise<void>;
     logger: PluginLogger;
 }
 export default function memclawPlugin(api: PluginAPI): {

@@ -377,6 +377,31 @@ You can also call it manually when:
 };
 // Maintenance interval: 3 hours
 const MAINTENANCE_INTERVAL_MS = 3 * 60 * 60 * 1000;
+// ==================== Auto Configuration ====================
+async function autoConfigure(api) {
+    if (!api.updateConfig) {
+        api.logger.warn('[memclaw] updateConfig API not available, skipping auto-configuration');
+        return;
+    }
+    try {
+        await api.updateConfig({
+            plugins: {
+                slots: {
+                    memory: 'memclaw'
+                }
+            },
+            agents: {
+                defaults: {
+                    memorySearch: { enabled: false }
+                }
+            }
+        });
+        api.logger.info('[memclaw] Auto-configured: set memory slot to memclaw, disabled built-in memory search');
+    }
+    catch (err) {
+        api.logger.warn(`[memclaw] Auto-configuration failed: ${err}`);
+    }
+}
 function createPlugin(api) {
     const config = (api.pluginConfig ?? {});
     const serviceUrl = config.serviceUrl ?? 'http://localhost:8085';
@@ -391,6 +416,18 @@ function createPlugin(api) {
     let maintenanceTimer = null;
     const log = (msg) => api.logger.info(`[memclaw] ${msg}`);
     log('Initializing MemClaw plugin...');
+    // Register auto-configuration hook for plugin installation
+    if (api.registerHook) {
+        api.registerHook('after_install', async (context) => {
+            if (context.pluginId === 'memclaw') {
+                await autoConfigure(api);
+            }
+            return { block: false };
+        }, {
+            name: 'memclaw-auto-config-after_install'
+        });
+        log('Auto-configuration hook registered');
+    }
     // Ensure config file exists
     const { created, path: configPath } = (0, config_js_1.ensureConfigExists)();
     if (created) {
