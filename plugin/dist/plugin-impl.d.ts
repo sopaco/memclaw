@@ -9,6 +9,7 @@
  * - Smart exploration
  * - Migration from OpenClaw native memory
  */
+import { type MemoryPluginCapability } from './src/memory-adapter.js';
 interface PluginLogger {
     debug?: (msg: string, ...args: unknown[]) => void;
     info: (msg: string, ...args: unknown[]) => void;
@@ -35,6 +36,8 @@ interface PluginAPI {
     }) => void;
     updateConfig?: (updates: Record<string, unknown>) => Promise<void>;
     logger: PluginLogger;
+    /** Register memory capability (OpenClaw memory plugin API) */
+    registerMemoryCapability?: (capability: MemoryPluginCapability) => void;
 }
 interface ToolDefinition {
     name: string;

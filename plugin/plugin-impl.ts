@@ -30,6 +30,10 @@ import {
 } from './src/binaries.js';
 import { migrateFromOpenClaw, canMigrate } from './src/migrate.js';
 import { ensureAgentsMdEnhanced } from './src/agents-md-injector.js';
+import {
+	createMemoryPluginCapability,
+	type MemoryPluginCapability
+} from './src/memory-adapter.js';
 
 // Plugin configuration
 interface PluginConfig {
@@ -80,6 +84,8 @@ interface PluginAPI {
 	) => void;
 	updateConfig?: (updates: Record<string, unknown>) => Promise<void>;
 	logger: PluginLogger;
+	/** Register memory capability (OpenClaw memory plugin API) */
+	registerMemoryCapability?: (capability: MemoryPluginCapability) => void;
 }
 
 interface ToolDefinition {
@@ -512,6 +518,16 @@ export function createPlugin(api: PluginAPI) {
 	const log = (msg: string) => api.logger.info(`[memclaw] ${msg}`);
 
 	log('Initializing MemClaw plugin...');
+
+	// Register memory capability if OpenClaw supports it
+	if (api.registerMemoryCapability) {
+		const capability = createMemoryPluginCapability({
+			serviceUrl,
+			tenantId,
+		});
+		api.registerMemoryCapability(capability);
+		log('Memory capability registered with OpenClaw');
+	}
 
 	// Register auto-configuration hook for plugin installation
 	if (api.registerHook) {
