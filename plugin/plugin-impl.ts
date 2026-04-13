@@ -68,6 +68,17 @@ interface PluginAPI {
 		start: () => Promise<void>;
 		stop: () => Promise<void>;
 	}): void;
+	registerHook?: (
+		event:
+			| 'before_install'
+			| 'after_install'
+			| 'before_uninstall'
+			| 'after_uninstall'
+			| 'on_config_change',
+		handler: (context: { pluginId: string }) => Promise<{ block?: boolean; message?: string }>,
+		opt: { name: string }
+	) => void;
+	updateConfig?: (updates: Record<string, unknown>) => Promise<void>;
 	logger: PluginLogger;
 }
 
@@ -455,6 +466,35 @@ You can also call it manually when:
 // Maintenance interval: 3 hours
 const MAINTENANCE_INTERVAL_MS = 3 * 60 * 60 * 1000;
 
+// ==================== Auto Configuration ====================
+
+async function autoConfigure(api: PluginAPI): Promise<void> {
+	if (!api.updateConfig) {
+		api.logger.warn('[memclaw] updateConfig API not available, skipping auto-configuration');
+		return;
+	}
+
+	try {
+		await api.updateConfig({
+			plugins: {
+				slots: {
+					memory: 'memclaw'
+				}
+			},
+			agents: {
+				defaults: {
+					memorySearch: { enabled: false }
+				}
+			}
+		});
+		api.logger.info(
+			'[memclaw] Auto-configured: set memory slot to memclaw, disabled built-in memory search'
+		);
+	} catch (err) {
+		api.logger.warn(`[memclaw] Auto-configuration failed: ${err}`);
+	}
+}
+
 export function createPlugin(api: PluginAPI) {
 	const config = (api.pluginConfig ?? {}) as PluginConfig;
 	const serviceUrl = config.serviceUrl ?? 'http://localhost:8085';
@@ -472,6 +512,23 @@ export function createPlugin(api: PluginAPI) {
 	const log = (msg: string) => api.logger.info(`[memclaw] ${msg}`);
 
 	log('Initializing MemClaw plugin...');
+
+	// Register auto-configuration hook for plugin installation
+	if (api.registerHook) {
+		api.registerHook(
+			'after_install',
+			async (context) => {
+				if (context.pluginId === 'memclaw') {
+					await autoConfigure(api);
+				}
+				return { block: false };
+			},
+			{
+				name: 'memclaw-auto-config-after_install'
+			}
+		);
+		log('Auto-configuration hook registered');
+	}
 
 	// Ensure config file exists
 	const { created, path: configPath } = ensureConfigExists();
