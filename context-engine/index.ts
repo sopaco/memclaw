@@ -9,13 +9,13 @@
  */
 
 import { CortexMemClient } from './client.js';
+import { ensureConfigExists, openConfigFile, getConfigPath, parsePluginConfig } from './config.js';
 import {
-	ensureConfigExists,
-	openConfigFile,
-	getConfigPath,
-	parsePluginConfig,
-} from './config.js';
-import { ensureAllServices, checkServiceStatus, isBinaryAvailable, stopAllServices } from './binaries.js';
+	ensureAllServices,
+	checkServiceStatus,
+	isBinaryAvailable,
+	stopAllServices
+} from './binaries.js';
 import { createContextEngine, openClawSessionToCortexId } from './context-engine.js';
 import { createTools } from './tools.js';
 
@@ -49,8 +49,14 @@ type OpenClawPluginApi = {
 	}) => void;
 	registerContextEngine?: (id: string, factory: () => unknown) => void;
 	registerHook?: (
-		event: 'before_install' | 'after_install' | 'before_uninstall' | 'after_uninstall' | 'on_config_change',
-		handler: (context: { pluginId: string }) => Promise<{ block?: boolean; message?: string }>
+		event:
+			| 'before_install'
+			| 'after_install'
+			| 'before_uninstall'
+			| 'after_uninstall'
+			| 'on_config_change',
+		handler: (context: { pluginId: string }) => Promise<{ block?: boolean; message?: string }>,
+		opt: { name: string }
 	) => void;
 	updateConfig?: (updates: Record<string, unknown>) => Promise<void>;
 };
@@ -59,7 +65,9 @@ type OpenClawPluginApi = {
 
 async function autoConfigure(api: OpenClawPluginApi): Promise<void> {
 	if (!api.updateConfig) {
-		api.logger.warn('[memclaw-context-engine] updateConfig API not available, skipping auto-configuration');
+		api.logger.warn(
+			'[memclaw-context-engine] updateConfig API not available, skipping auto-configuration'
+		);
 		return;
 	}
 
@@ -77,7 +85,9 @@ async function autoConfigure(api: OpenClawPluginApi): Promise<void> {
 				}
 			}
 		});
-		api.logger.info('[memclaw-context-engine] Auto-configured: disabled built-in memory (memory=none), set contextEngine slot');
+		api.logger.info(
+			'[memclaw-context-engine] Auto-configured: disabled built-in memory (memory=none), set contextEngine slot'
+		);
 	} catch (err) {
 		api.logger.warn(`[memclaw-context-engine] Auto-configuration failed: ${err}`);
 	}
@@ -87,9 +97,10 @@ async function autoConfigure(api: OpenClawPluginApi): Promise<void> {
 
 export function createPlugin(api: OpenClawPluginApi) {
 	// Parse plugin config
-	const rawConfig = (api.pluginConfig && typeof api.pluginConfig === 'object' && !Array.isArray(api.pluginConfig))
-		? (api.pluginConfig as Record<string, unknown>)
-		: {};
+	const rawConfig =
+		api.pluginConfig && typeof api.pluginConfig === 'object' && !Array.isArray(api.pluginConfig)
+			? (api.pluginConfig as Record<string, unknown>)
+			: {};
 
 	const config = parsePluginConfig(rawConfig);
 	const log = (msg: string) => api.logger.info(`[memclaw-context-engine] ${msg}`);
@@ -98,12 +109,18 @@ export function createPlugin(api: OpenClawPluginApi) {
 
 	// Register auto-configuration hook for plugin installation
 	if (api.registerHook) {
-		api.registerHook('after_install', async (context) => {
-			if (context.pluginId === 'memclaw-context-engine') {
-				await autoConfigure(api);
+		api.registerHook(
+			'after_install',
+			async (context) => {
+				if (context.pluginId === 'memclaw-context-engine') {
+					await autoConfigure(api);
+				}
+				return { block: false };
+			},
+			{
+				name: 'memclaw-context-engine-auto-config-after_install'
 			}
-			return { block: false };
-		});
+		);
 		log('Auto-configuration hook registered');
 	}
 
@@ -203,7 +220,7 @@ export function createPlugin(api: OpenClawPluginApi) {
 	if (api.registerContextEngine) {
 		api.registerContextEngine('memclaw-context-engine', () => {
 			const engine = createContextEngine(config, client, api.logger);
-			
+
 			return {
 				info: engine.getInfo(),
 				ingest: (params: Parameters<typeof engine.ingest>[0]) => engine.ingest(params),
@@ -214,7 +231,9 @@ export function createPlugin(api: OpenClawPluginApi) {
 		});
 		log('Context Engine registered');
 	} else {
-		api.logger.warn('[memclaw-context-engine] registerContextEngine not available in this OpenClaw version');
+		api.logger.warn(
+			'[memclaw-context-engine] registerContextEngine not available in this OpenClaw version'
+		);
 	}
 
 	// ==================== Register Tools ====================
@@ -249,7 +268,11 @@ export function createPlugin(api: OpenClawPluginApi) {
 export { CortexMemClient } from './client.js';
 export { createContextEngine, openClawSessionToCortexId } from './context-engine.js';
 export { createTools } from './tools.js';
-export { parsePluginConfig, getDefaultContextEngineConfig, type ContextEngineConfig } from './config.js';
+export {
+	parsePluginConfig,
+	getDefaultContextEngineConfig,
+	type ContextEngineConfig
+} from './config.js';
 export * from './binaries.js';
 
 // Register function - OpenClaw plugin entry point

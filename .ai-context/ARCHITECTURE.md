@@ -65,7 +65,7 @@ OpenClaw Gateway (≥ 2026.3.8)
 | Package | Version | Depends On |
 |---------|---------|-----------|
 | `@memclaw/memclaw` | 0.9.36 | `@memclaw/bin-*` (0.1.9) |
-| `@memclaw/context-engine` | 0.9.55 | `@memclaw/bin-*` (same versions) |
+| `@memclaw/context-engine` | 0.9.56 | `@memclaw/bin-*` (same versions) |
 | `@memclaw/bin-darwin-arm64` | 0.1.9 | — |
 | `@memclaw/bin-linux-x64` | 0.1.9 | — |
 | `@memclaw/bin-win-x64` | 0.1.9 | — |

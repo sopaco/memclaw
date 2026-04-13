@@ -60,7 +60,7 @@ async function autoConfigure(api) {
 // =================--- Plugin Implementation ====================
 function createPlugin(api) {
     // Parse plugin config
-    const rawConfig = (api.pluginConfig && typeof api.pluginConfig === 'object' && !Array.isArray(api.pluginConfig))
+    const rawConfig = api.pluginConfig && typeof api.pluginConfig === 'object' && !Array.isArray(api.pluginConfig)
         ? api.pluginConfig
         : {};
     const config = (0, config_js_1.parsePluginConfig)(rawConfig);
@@ -73,6 +73,8 @@ function createPlugin(api) {
                 await autoConfigure(api);
             }
             return { block: false };
+        }, {
+            name: 'memclaw-context-engine-auto-config-after_install'
         });
         log('Auto-configuration hook registered');
     }

@@ -43,7 +43,9 @@ type OpenClawPluginApi = {
     }) => Promise<{
         block?: boolean;
         message?: string;
-    }>) => void;
+    }>, opt: {
+        name: string;
+    }) => void;
     updateConfig?: (updates: Record<string, unknown>) => Promise<void>;
 };
 export declare function createPlugin(api: OpenClawPluginApi): void;
