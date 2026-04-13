@@ -37,6 +37,11 @@ export {
 	CortexMemorySearchManager,
 	getMemorySearchManager,
 	closeAllMemorySearchManagers,
+	// OpenClaw official API factory functions
+	createMemoryPromptSectionBuilder,
+	createMemoryFlushPlanResolver,
+	createMemoryRuntime,
+	// Legacy compatibility
 	createMemoryPluginCapability
 } from './src/memory-adapter.js';
 
@@ -47,6 +52,8 @@ export type {
 	MemoryPluginCapability,
 	MemoryPluginRuntime,
 	MemoryFlushPlan,
+	MemoryFlushPlanResolver,
+	MemoryPromptSectionBuilder,
 	MemoryCitationsMode
 } from './src/memory-adapter.js';
 

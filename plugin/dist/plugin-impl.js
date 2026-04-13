@@ -417,14 +417,31 @@ function createPlugin(api) {
     let maintenanceTimer = null;
     const log = (msg) => api.logger.info(`[memclaw] ${msg}`);
     log('Initializing MemClaw plugin...');
-    // Register memory capability if OpenClaw supports it
+    // Register memory capability using the modern recommended unified API
+    // Fallback to legacy separate registration APIs if unified API is not available
     if (api.registerMemoryCapability) {
+        // Modern unified API (recommended)
         const capability = (0, memory_adapter_js_1.createMemoryPluginCapability)({
             serviceUrl,
             tenantId,
         });
         api.registerMemoryCapability(capability);
-        log('Memory capability registered with OpenClaw');
+        log('Memory capability registered (unified API)');
+    }
+    else {
+        // Legacy separate APIs (backward compatibility)
+        if (api.registerMemoryPromptSection) {
+            api.registerMemoryPromptSection((0, memory_adapter_js_1.createMemoryPromptSectionBuilder)());
+            log('Memory prompt section registered (legacy API)');
+        }
+        if (api.registerMemoryFlushPlan) {
+            api.registerMemoryFlushPlan((0, memory_adapter_js_1.createMemoryFlushPlanResolver)());
+            log('Memory flush plan registered (legacy API)');
+        }
+        if (api.registerMemoryRuntime) {
+            api.registerMemoryRuntime((0, memory_adapter_js_1.createMemoryRuntime)({ serviceUrl, tenantId }));
+            log('Memory runtime registered (legacy API)');
+        }
     }
     // Register auto-configuration hook for plugin installation
     if (api.registerHook) {

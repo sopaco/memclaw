@@ -275,7 +275,32 @@ export type MemoryPluginCapability = {
     publicArtifacts?: MemoryPluginPublicArtifactsProvider;
 };
 /**
- * Create the MemoryPluginCapability object for registerMemoryCapability.
+ * Create memory prompt section builder for api.registerMemoryPromptSection.
+ *
+ * This builds the system prompt section that guides agents on using Cortex Memory.
+ */
+export declare function createMemoryPromptSectionBuilder(): MemoryPromptSectionBuilder;
+/**
+ * Create memory flush plan resolver for api.registerMemoryFlushPlan.
+ *
+ * This determines when and how to flush memory during compaction.
+ */
+export declare function createMemoryFlushPlanResolver(): MemoryFlushPlanResolver;
+/**
+ * Create memory runtime for api.registerMemoryRuntime.
+ *
+ * This provides the MemorySearchManager implementation that OpenClaw uses
+ * for memory operations.
+ */
+export declare function createMemoryRuntime(options: {
+    serviceUrl: string;
+    tenantId: string;
+}): MemoryPluginRuntime;
+/**
+ * @deprecated Use createMemoryPromptSectionBuilder, createMemoryFlushPlanResolver,
+ * and createMemoryRuntime instead. This function is kept for backward compatibility.
+ *
+ * Create the MemoryPluginCapability object for legacy registerMemoryCapability.
  */
 export declare function createMemoryPluginCapability(options: {
     serviceUrl: string;
