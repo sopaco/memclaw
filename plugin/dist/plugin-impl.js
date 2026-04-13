@@ -17,6 +17,7 @@ const config_js_1 = require("./src/config.js");
 const binaries_js_1 = require("./src/binaries.js");
 const migrate_js_1 = require("./src/migrate.js");
 const agents_md_injector_js_1 = require("./src/agents-md-injector.js");
+const memory_adapter_js_1 = require("./src/memory-adapter.js");
 // Tool schemas
 const toolSchemas = {
     cortex_search: {
@@ -416,6 +417,15 @@ function createPlugin(api) {
     let maintenanceTimer = null;
     const log = (msg) => api.logger.info(`[memclaw] ${msg}`);
     log('Initializing MemClaw plugin...');
+    // Register memory capability if OpenClaw supports it
+    if (api.registerMemoryCapability) {
+        const capability = (0, memory_adapter_js_1.createMemoryPluginCapability)({
+            serviceUrl,
+            tenantId,
+        });
+        api.registerMemoryCapability(capability);
+        log('Memory capability registered with OpenClaw');
+    }
     // Register auto-configuration hook for plugin installation
     if (api.registerHook) {
         api.registerHook('after_install', async (context) => {

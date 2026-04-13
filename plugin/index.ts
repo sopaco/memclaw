@@ -32,6 +32,24 @@ import { createPlugin } from './plugin-impl.js';
 export type { CortexMemClient } from './src/client.js';
 export type { MemClawConfig } from './src/config.js';
 
+// Memory Adapter exports (for OpenClaw memory plugin integration)
+export {
+	CortexMemorySearchManager,
+	getMemorySearchManager,
+	closeAllMemorySearchManagers,
+	createMemoryPluginCapability
+} from './src/memory-adapter.js';
+
+export type {
+	MemorySearchManager,
+	MemorySearchResult,
+	MemoryProviderStatus,
+	MemoryPluginCapability,
+	MemoryPluginRuntime,
+	MemoryFlushPlan,
+	MemoryCitationsMode
+} from './src/memory-adapter.js';
+
 // OpenClaw Plugin API types
 interface PluginLogger {
 	debug?: (msg: string, ...args: unknown[]) => void;
@@ -79,7 +97,7 @@ export default function memclawPlugin(api: PluginAPI) {
 export const plugin = {
 	id: 'memclaw',
 	name: 'MemClaw',
-	version: '0.9.38',
+	version: '0.9.39',
 	configSchema: {
 		type: 'object',
 		properties: {
