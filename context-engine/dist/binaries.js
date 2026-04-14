@@ -357,6 +357,13 @@ async function executeCliCommand(args, configPath, tenantId, timeout = 120000) {
         };
     }
     const fullArgs = ['--config', configPath, '--tenant', tenantId, ...args];
+    // Ensure CLI binary has execute permission
+    try {
+        fs.chmodSync(cliPath, 0o755);
+    }
+    catch {
+        // Ignore chmod errors - binary may already have correct permissions
+    }
     return new Promise((resolve) => {
         let stdout = '';
         let stderr = '';

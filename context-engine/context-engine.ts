@@ -653,7 +653,7 @@ export function createContextEngine(
 	const info: ContextEngineInfo = {
 		id: 'memclaw-context-engine',
 		name: 'MemClaw Context Engine',
-		version: '0.9.56',
+		version: '0.9.60',
 		ownsCompaction: false // Delegated to OpenClaw runtime
 	};
 
