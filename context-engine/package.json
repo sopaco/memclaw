@@ -1,6 +1,6 @@
 {
 	"name": "@memclaw/memclaw-context-engine",
-	"version": "0.9.56",
+	"version": "0.9.60",
 	"description": "MemClaw Context Engine - Native context management for OpenClaw with automatic recall and capture",
 	"homepage": "https://github.com/sopaco/cortex-mem",
 	"repository": {
@@ -60,9 +60,9 @@
 		"glob": "^11.0.0"
 	},
 	"optionalDependencies": {
-		"@memclaw/bin-darwin-arm64": "0.1.9",
+		"@memclaw/bin-darwin-arm64": "0.1.10",
 		"@memclaw/bin-win-x64": "0.1.9",
-		"@memclaw/bin-linux-x64": "0.1.9"
+		"@memclaw/bin-linux-x64": "0.1.10"
 	},
 	"engines": {
 		"node": ">=20.0.0"
