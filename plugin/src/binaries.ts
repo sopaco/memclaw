@@ -416,6 +416,13 @@ export async function executeCliCommand(
 		};
 	}
 
+	// Ensure CLI binary has execute permission (same as startQdrant/startCortexMemService)
+	try {
+		fs.chmodSync(cliPath, 0o755);
+	} catch {
+		// Ignore chmod errors - binary may already have correct permissions
+	}
+
 	const fullArgs = [
 		'--config', configPath,
 		'--tenant', tenantId,
