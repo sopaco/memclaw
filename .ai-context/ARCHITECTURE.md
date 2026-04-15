@@ -9,9 +9,9 @@
 ```
 memclaw/
 │
-├── plugin/                          # @memclaw/memclaw (v0.9.36)
+├── plugin/                          # @memclaw/memclaw (v0.9.53)
 │   ├── index.ts                     #   Plugin entry: exports default + named plugin
-│   ├── plugin-impl.ts               #   Core: service lifecycle, 11 tools, AGENTS.md injector
+│   ├── plugin-impl.ts               #   Core: service lifecycle, 12 tools, AGENTS.md injector
 │   ├── src/
 │   │   ├── client.ts                #   HTTP client for cortex-mem-service (search, ls, tiered access)
 │   │   ├── config.ts                #   TOML config management, plugin sync, validation
@@ -24,7 +24,7 @@ memclaw/
 │   ├── index.ts                     #   Plugin entry: service + context engine + tools registration
 │   ├── context-engine.ts            #   Core: ingest/assemble/afterTurn/compact lifecycle
 │   ├── client.ts                    #   HTTP client (simpler than plugin's — fewer methods needed)
-│   ├── tools.ts                     #   9 tool definitions
+│   ├── tools.ts                     #   10 tool definitions
 │   ├── config.ts                    #   Context-engine-specific config defaults
 │   └── binaries.ts                  #   Binary/service management (duplicated logic from plugin)
 │
@@ -64,7 +64,7 @@ OpenClaw Gateway (≥ 2026.3.8)
 
 | Package | Version | Depends On |
 |---------|---------|-----------|
-| `@memclaw/memclaw` | 0.9.36 | `@memclaw/bin-*` (0.1.9) |
+| `@memclaw/memclaw` | 0.9.53 | `@memclaw/bin-*` (0.1.9) |
 | `@memclaw/context-engine` | 0.9.61 | `@memclaw/bin-*` (same versions) |
 | `@memclaw/bin-darwin-arm64` | 0.1.9 | — |
 | `@memclaw/bin-linux-x64` | 0.1.9 | — |

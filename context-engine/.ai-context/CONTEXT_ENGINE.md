@@ -174,6 +174,7 @@ interface ContextEngineConfig {
 | `cortex_get_overview` | 获取 L1 概览 |
 | `cortex_get_content` | 获取 L2 全文 |
 | `cortex_forget` | 删除记忆 |
+| `cortex_maintenance` | 数据维护（自动每 3 小时） |
 
 **注意**：`cortex_archive_expand` 已移除（归档不是 Cortex Memory 的核心机制，记忆衰减通过 `archived` 标记处理）
 
