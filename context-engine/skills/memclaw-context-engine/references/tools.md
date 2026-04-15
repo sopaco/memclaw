@@ -278,3 +278,37 @@ Delete a memory by exact URI.
 ```
 cortex_forget(uri="cortex://user/default/preferences/phone-number.md")
 ```
+
+---
+
+## Maintenance Tools
+
+### cortex_maintenance
+
+Periodic data maintenance. **Auto-runs every 3 hours**.
+
+**Parameters:**
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| dryRun | boolean | No | false | Preview without executing |
+| commands | string[] | No | ["prune", "reindex", "ensure-all"] | Commands to run |
+
+**Commands:**
+- `prune` — Remove orphaned vectors
+- `reindex` — Rebuild vector index
+- `ensure-all` — Generate missing L0/L1 layers
+
+**Response:**
+```json
+{
+  "content": "Maintenance completed:\nVector Prune: OK\nVector Reindex: OK\nLayers Ensure-All: OK\n\n3/3 commands succeeded.",
+  "dryRun": false,
+  "success": true
+}
+```
+
+**When to call manually:**
+- Search results stale/incomplete
+- After crash recovery
+- Disk cleanup needed

@@ -294,6 +294,23 @@ Commit session and trigger memory extraction pipeline.
 
 ---
 
+
+---
+
+### cortex_forget
+
+Delete a memory by URI. **WARNING**: Permanent removal.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| uri | string | Yes | Exact memory URI to delete |
+
+**Response:**
+```json
+{ "success": true, "content": "Forgotten: cortex://user/default/preferences/..." }
+```
 ## Maintenance Tools
 
 ### cortex_maintenance

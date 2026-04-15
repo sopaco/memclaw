@@ -243,6 +243,46 @@ cortex_get_overview(uri="...")  # ~2000 tokens
 cortex_get_content(uri="...")   # Full content, use sparingly
 ```
 
+## Maintenance Issues
+
+### Maintenance Not Running
+
+**Symptom:** Scheduled maintenance doesn't execute.
+
+**Cause:** Service not started or timer disabled.
+
+**Fix:**
+```bash
+# Verify service is running
+curl http://localhost:8085/health
+
+# Run manually
+cortex_maintenance()
+```
+
+### Maintenance Commands Fail
+
+**Symptom:** `prune`, `reindex`, or `ensure-all` fails.
+
+**Causes:**
+1. cortex-mem-cli binary missing
+2. Data directory permission issue
+3. Qdrant connection failed
+
+**Fix:**
+```bash
+# Check CLI binary
+ls .../@memclaw/bin-*/bin/cortex-mem-cli
+
+# Dry run to preview
+cortex_maintenance(dryRun=true)
+
+# Run specific command
+cortex_maintenance(commands=["reindex"])
+```
+
+---
+
 ## Common Error Messages
 
 | Error | Cause | Fix |
