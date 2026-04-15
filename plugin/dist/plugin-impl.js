@@ -447,7 +447,7 @@ function createPlugin(api) {
         // Modern unified API (recommended)
         const capability = (0, memory_adapter_js_1.createMemoryPluginCapability)({
             serviceUrl,
-            tenantId,
+            tenantId
         });
         api.registerMemoryCapability(capability);
         log('Memory capability registered (unified API)');

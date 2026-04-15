@@ -38,7 +38,7 @@ import {
 	type MemoryPluginCapability,
 	type MemoryPromptSectionBuilder,
 	type MemoryFlushPlanResolver,
-	type MemoryPluginRuntime,
+	type MemoryPluginRuntime
 } from './src/memory-adapter.js';
 
 // Plugin configuration
@@ -153,7 +153,8 @@ Use "cortex://user/default" only when specifically looking for user profile/pref
 						type: 'string',
 						enum: ['L0', 'L1', 'L2']
 					},
-					description: 'Which layers to return. Default: ["L0"]. Use ["L0","L1"] for more context, ["L0","L1","L2"] for full content.',
+					description:
+						'Which layers to return. Default: ["L0"]. Use ["L0","L1"] for more context, ["L0","L1","L2"] for full content.',
 					default: ['L0']
 				}
 			},
@@ -562,7 +563,7 @@ export function createPlugin(api: PluginAPI) {
 		// Modern unified API (recommended)
 		const capability = createMemoryPluginCapability({
 			serviceUrl,
-			tenantId,
+			tenantId
 		});
 		api.registerMemoryCapability(capability);
 		log('Memory capability registered (unified API)');
@@ -796,7 +797,8 @@ export function createPlugin(api: PluginAPI) {
 							content += `   Overview: ${r.overview.substring(0, 200)}...\n`;
 						}
 						if (r.content) {
-							const preview = r.content.length > 200 ? r.content.substring(0, 200) + '...' : r.content;
+							const preview =
+								r.content.length > 200 ? r.content.substring(0, 200) + '...' : r.content;
 							content += `   Content: ${preview}\n`;
 						}
 						return content;
@@ -968,9 +970,10 @@ export function createPlugin(api: PluginAPI) {
 							content += `   Size: ${e.size} bytes\n`;
 						}
 						if (e.abstract_text) {
-							const preview = e.abstract_text.length > 100 
-								? e.abstract_text.substring(0, 100) + '...' 
-								: e.abstract_text;
+							const preview =
+								e.abstract_text.length > 100
+									? e.abstract_text.substring(0, 100) + '...'
+									: e.abstract_text;
 							content += `   Abstract: ${preview}\n`;
 						}
 						return content;
@@ -1100,9 +1103,10 @@ export function createPlugin(api: PluginAPI) {
 					.map((item, i) => {
 						let content = `${i + 1}. [${item.relevance_score.toFixed(2)}] ${item.uri}\n`;
 						if (item.abstract_text) {
-							const preview = item.abstract_text.length > 80
-								? item.abstract_text.substring(0, 80) + '...'
-								: item.abstract_text;
+							const preview =
+								item.abstract_text.length > 80
+									? item.abstract_text.substring(0, 80) + '...'
+									: item.abstract_text;
 							content += `   Abstract: ${preview}\n`;
 						}
 						return content;
@@ -1120,7 +1124,8 @@ export function createPlugin(api: PluginAPI) {
 					.join('\n');
 
 				return {
-					content: `Exploration for "${input.query}" starting from "${input.start_uri ?? 'cortex://session'}":\n\n` +
+					content:
+						`Exploration for "${input.query}" starting from "${input.start_uri ?? 'cortex://session'}":\n\n` +
 						`**Exploration Path** (${result.total_explored} items):\n${pathFormatted}\n\n` +
 						`**Matches** (${result.total_matches} found):\n${matchesFormatted}`,
 					exploration_path: result.exploration_path,
@@ -1246,7 +1251,6 @@ export function createPlugin(api: PluginAPI) {
 		}
 	});
 
-	
 	// cortex_forget
 	api.registerTool({
 		name: toolSchemas.cortex_forget.name,
@@ -1271,7 +1275,7 @@ export function createPlugin(api: PluginAPI) {
 		}
 	});
 
-log('MemClaw plugin initialized');
+	log('MemClaw plugin initialized');
 
 	return {
 		id: 'memclaw',
