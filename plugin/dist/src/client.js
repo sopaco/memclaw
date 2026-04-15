@@ -176,6 +176,18 @@ class CortexMemClient {
             throw new Error(response.error ?? 'Switch tenant failed');
         }
     }
+    // ==================== Delete ====================
+    /**
+     * Delete a memory by URI
+     */
+    async deleteUri(uri) {
+        const response = await this.fetchJson(`/api/v2/filesystem?uri=${encodeURIComponent(uri)}&recursive=false`, {
+            method: 'DELETE'
+        });
+        if (!response.success) {
+            throw new Error(response.error ?? 'Delete URI failed');
+        }
+    }
     // ==================== Internal ====================
     async fetchJson(path, options = {}) {
         const url = `${this.baseUrl}${path}`;

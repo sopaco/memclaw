@@ -90,6 +90,31 @@ Example: User says "Forget my phone number"
 cortex_forget(uri="cortex://user/default/preferences/phone-number.md")
 ```
 
+### cortex_maintenance — Periodic Maintenance
+
+Perform maintenance on MemClaw data. **Runs automatically every 3 hours** but can be called manually.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `dryRun` | No | Preview changes without executing (default: false) |
+| `commands` | No | Commands to run: `["prune", "reindex", "ensure-all"]` (default: all) |
+
+**What it does:**
+1. `prune` — Remove vectors whose source files no longer exist
+2. `reindex` — Rebuild vector index and remove stale entries
+3. `ensure-all` — Generate missing L0/L1 layer files
+
+**When to call manually:**
+- Search results seem incomplete or stale
+- After recovering from a crash or data corruption
+- When disk space cleanup is needed
+
+```
+cortex_maintenance()  # Run all commands
+cortex_maintenance(dryRun=true)  # Preview only
+cortex_maintenance(commands=["prune"])  # Run specific command
+```
+
 ### Browse Tools
 
 | Tool | Purpose |

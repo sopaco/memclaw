@@ -20,7 +20,7 @@ memclaw/
 │   │   └── agents-md-injector.ts    #   Auto-inject MemClaw section into AGENTS.md
 │   └── skills/                      #   Agent-facing skill docs (shipped with plugin)
 │
-├── context-engine/                  # @memclaw/context-engine (v0.9.60)
+├── context-engine/                  # @memclaw/context-engine
 │   ├── index.ts                     #   Plugin entry: service + context engine + tools registration
 │   ├── context-engine.ts            #   Core: ingest/assemble/afterTurn/compact lifecycle
 │   ├── client.ts                    #   HTTP client (simpler than plugin's — fewer methods needed)
@@ -65,7 +65,7 @@ OpenClaw Gateway (≥ 2026.3.8)
 | Package | Version | Depends On |
 |---------|---------|-----------|
 | `@memclaw/memclaw` | 0.9.36 | `@memclaw/bin-*` (0.1.9) |
-| `@memclaw/context-engine` | 0.9.60 | `@memclaw/bin-*` (same versions) |
+| `@memclaw/context-engine` | 0.9.61 | `@memclaw/bin-*` (same versions) |
 | `@memclaw/bin-darwin-arm64` | 0.1.9 | — |
 | `@memclaw/bin-linux-x64` | 0.1.9 | — |
 | `@memclaw/bin-win-x64` | 0.1.9 | — |

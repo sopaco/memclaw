@@ -138,6 +138,10 @@ export declare class CortexMemClient {
      * Switch tenant context
      */
     switchTenant(tenantId: string): Promise<void>;
+    /**
+     * Delete a memory by URI
+     */
+    deleteUri(uri: string): Promise<void>;
     private fetchJson;
 }
 //# sourceMappingURL=client.d.ts.map

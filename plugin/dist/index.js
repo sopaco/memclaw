@@ -49,7 +49,7 @@ function memclawPlugin(api) {
 exports.plugin = {
     id: 'memclaw',
     name: 'MemClaw',
-    version: '0.9.52',
+    version: '0.9.53',
     configSchema: {
         type: 'object',
         properties: {

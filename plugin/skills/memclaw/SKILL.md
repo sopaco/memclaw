@@ -122,6 +122,13 @@ cortex_commit_session()
 cortex_commit_session(session_id="project-alpha")
 ```
 
+
+#### cortex_forget
+Delete a memory by exact URI. **WARNING**: Permanently removes the memory.
+```
+cortex_forget(uri="cortex://user/default/preferences/phone-number.md")
+```
+
 ### Migration & Maintenance
 
 #### cortex_migrate

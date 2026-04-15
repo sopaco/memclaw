@@ -31,6 +31,8 @@ const config_js_1 = require("./config.js");
 const binaries_js_1 = require("./binaries.js");
 const context_engine_js_1 = require("./context-engine.js");
 const tools_js_1 = require("./tools.js");
+// Maintenance interval: 3 hours
+const MAINTENANCE_INTERVAL_MS = 3 * 60 * 60 * 1000;
 // ==================== Auto Configuration ====================
 async function autoConfigure(api) {
     if (!api.updateConfig) {
@@ -105,6 +107,7 @@ function createPlugin(api) {
     // Create client
     const client = new client_js_1.CortexMemClient(config.serviceUrl);
     let servicesStarted = false;
+    let maintenanceTimer = null;
     // Service start function (extracted for reuse)
     const startServices = async () => {
         // Skip service startup if config was just created (first run)
@@ -131,10 +134,72 @@ function createPlugin(api) {
             log(`Switched to tenant: ${config.tenantId}`);
             servicesStarted = true;
             log('MemClaw Context Engine services started successfully');
+            // Start maintenance timer
+            startMaintenanceTimer();
         }
         catch (err) {
             api.logger.error(`[memclaw-context-engine] Failed to start services: ${err}`);
             api.logger.warn('[memclaw-context-engine] Context engine features may not work correctly');
+        }
+    };
+    // Maintenance timer functions
+    const runMaintenance = async () => {
+        if (!servicesStarted)
+            return;
+        log('Running scheduled maintenance...');
+        const currentConfigPath = (0, config_js_1.getConfigPath)();
+        try {
+            const result = await (0, binaries_js_1.executeCliCommand)(['vector', 'prune'], currentConfigPath, config.tenantId, 300000);
+            if (result.success) {
+                log('Maintenance: vector prune completed');
+            }
+            else {
+                api.logger.warn(`[maintenance] vector prune failed: ${result.stderr}`);
+            }
+        }
+        catch (err) {
+            api.logger.error(`[maintenance] vector prune error: ${err}`);
+        }
+        try {
+            const result = await (0, binaries_js_1.executeCliCommand)(['vector', 'reindex'], currentConfigPath, config.tenantId, 300000);
+            if (result.success) {
+                log('Maintenance: vector reindex completed');
+            }
+            else {
+                api.logger.warn(`[maintenance] vector reindex failed: ${result.stderr}`);
+            }
+        }
+        catch (err) {
+            api.logger.error(`[maintenance] vector reindex error: ${err}`);
+        }
+        try {
+            const result = await (0, binaries_js_1.executeCliCommand)(['layers', 'ensure-all'], currentConfigPath, config.tenantId, 300000);
+            if (result.success) {
+                log('Maintenance: layers ensure-all completed');
+            }
+            else {
+                api.logger.warn(`[maintenance] layers ensure-all failed: ${result.stderr}`);
+            }
+        }
+        catch (err) {
+            api.logger.error(`[maintenance] layers ensure-all error: ${err}`);
+        }
+    };
+    const startMaintenanceTimer = () => {
+        if (maintenanceTimer)
+            return;
+        maintenanceTimer = setInterval(() => {
+            runMaintenance().catch((err) => {
+                api.logger.error(`[maintenance] Scheduled maintenance failed: ${err}`);
+            });
+        }, MAINTENANCE_INTERVAL_MS);
+        log(`Maintenance timer started (interval: ${MAINTENANCE_INTERVAL_MS / 60000} minutes)`);
+    };
+    const stopMaintenanceTimer = () => {
+        if (maintenanceTimer) {
+            clearInterval(maintenanceTimer);
+            maintenanceTimer = null;
+            log('Maintenance timer stopped');
         }
     };
     // Register service lifecycle
@@ -143,6 +208,7 @@ function createPlugin(api) {
         start: startServices,
         stop: async () => {
             log('Stopping MemClaw Context Engine...');
+            stopMaintenanceTimer();
             (0, binaries_js_1.stopAllServices)(log);
             servicesStarted = false;
         }

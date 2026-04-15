@@ -453,7 +453,7 @@ function createContextEngine(config, client, logger) {
     const info = {
         id: 'memclaw-context-engine',
         name: 'MemClaw Context Engine',
-        version: '0.9.60',
+        version: '0.9.61',
         ownsCompaction: false // Delegated to OpenClaw runtime
     };
     return new ContextEngine(info, config, client, logger);

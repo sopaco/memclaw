@@ -6,6 +6,8 @@
  */
 
 import type { CortexMemClient, SearchResult, Layer } from './client.js';
+import { executeCliCommand } from './binaries.js';
+import { getConfigPath } from './config.js';
 
 // ==================== Types ====================
 
@@ -255,6 +257,45 @@ This allows you to explore the hierarchical structure of memories:
 				}
 			},
 			required: ['uri']
+		}
+	},
+
+	cortex_maintenance: {
+		name: 'cortex_maintenance',
+		description: `Perform periodic maintenance on MemClaw data.
+
+This executes:
+1. vector prune - Remove vectors whose source files no longer exist
+2. vector reindex - Rebuild vector index and remove stale entries
+3. layers ensure-all - Generate missing L0/L1 layer files
+
+**This tool is typically called automatically by a scheduled timer.**
+You can also call it manually when:
+- Search results seem incomplete or stale
+- After recovering from a crash or data corruption
+- When disk space cleanup is needed
+
+**Parameters:**
+- dryRun: Preview changes without executing (default: false)
+- commands: Which commands to run (default: all)`,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				dryRun: {
+					type: 'boolean',
+					description: 'Preview changes without executing',
+					default: false
+				},
+				commands: {
+					type: 'array',
+					items: {
+						type: 'string',
+						enum: ['prune', 'reindex', 'ensure-all']
+					},
+					description: 'Which maintenance commands to run',
+					default: ['prune', 'reindex', 'ensure-all']
+				}
+			}
 		}
 	}
 };
@@ -579,6 +620,88 @@ export function createTools(
 				logger.error(`[context-engine] cortex_forget failed: ${message}`);
 				return { error: `Forget failed: ${message}` };
 			}
+		}
+	});
+
+	// cortex_maintenance
+	tools.set('cortex_maintenance', {
+		name: 'cortex_maintenance',
+		description: toolSchemas.cortex_maintenance.description,
+		parameters: toolSchemas.cortex_maintenance.inputSchema,
+		execute: async (_id, params) => {
+			const input = params as {
+				dryRun?: boolean;
+				commands?: string[];
+			};
+
+			const dryRun = input.dryRun ?? false;
+			const commands = input.commands ?? ['prune', 'reindex', 'ensure-all'];
+			const currentConfigPath = getConfigPath();
+
+			const results: { command: string; success: boolean; output: string }[] = [];
+
+			for (const cmd of commands) {
+				let cliArgs: string[];
+				let description: string;
+
+				switch (cmd) {
+					case 'prune':
+						cliArgs = ['vector', 'prune'];
+						if (dryRun) cliArgs.push('--dry-run');
+						description = 'Vector Prune';
+						break;
+					case 'reindex':
+						cliArgs = ['vector', 'reindex'];
+						description = 'Vector Reindex';
+						break;
+					case 'ensure-all':
+						cliArgs = ['layers', 'ensure-all'];
+						description = 'Layers Ensure-All';
+						break;
+					default:
+						continue;
+				}
+
+				logger.info(`[maintenance] Running: ${description}`);
+
+				try {
+					const result = await executeCliCommand(
+						cliArgs,
+						currentConfigPath,
+						config.tenantId,
+						300000 // 5 minute timeout for maintenance
+					);
+
+					results.push({
+						command: description,
+						success: result.success,
+						output: result.stdout || result.stderr
+					});
+
+					if (!result.success) {
+						logger.warn(`[context-engine] [maintenance] ${description} failed: ${result.stderr}`);
+					}
+				} catch (error) {
+					const message = error instanceof Error ? error.message : String(error);
+					results.push({
+						command: description,
+						success: false,
+						output: message
+					});
+					logger.error(`[maintenance] ${description} error: ${message}`);
+				}
+			}
+
+			const summary = results.map((r) => `${r.command}: ${r.success ? 'OK' : 'FAILED'}`).join('\n');
+
+			const successCount = results.filter((r) => r.success).length;
+
+			return {
+				content: `Maintenance ${dryRun ? '(dry run) ' : ''}completed:\n${summary}\n\n${successCount}/${results.length} commands succeeded.`,
+				dryRun,
+				results,
+				success: successCount === results.length
+			};
 		}
 	});
 

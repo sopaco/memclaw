@@ -355,6 +355,24 @@ export class CortexMemClient {
 		}
 	}
 
+	// ==================== Delete ====================
+
+	/**
+	 * Delete a memory by URI
+	 */
+	async deleteUri(uri: string): Promise<void> {
+		const response = await this.fetchJson<{
+			success: boolean;
+			error?: string;
+		}>(`/api/v2/filesystem?uri=${encodeURIComponent(uri)}&recursive=false`, {
+			method: 'DELETE'
+		});
+
+		if (!response.success) {
+			throw new Error(response.error ?? 'Delete URI failed');
+		}
+	}
+
 	// ==================== Internal ====================
 
 	private async fetchJson<T>(

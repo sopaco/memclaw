@@ -478,6 +478,31 @@ You can also call it manually when:
 				}
 			}
 		}
+	},
+
+	cortex_forget: {
+		name: 'cortex_forget',
+		description: `Delete a memory by URI.
+
+**WARNING**: This permanently removes the memory and its vector index.
+
+Use when:
+- User explicitly asks to forget/remove something
+- A memory is outdated or incorrect
+- Cleaning up test data
+
+**Parameters:**
+- uri: Exact memory URI to delete (required)`,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				uri: {
+					type: 'string',
+					description: 'Exact memory URI to delete'
+				}
+			},
+			required: ['uri']
+		}
 	}
 };
 
@@ -1221,7 +1246,32 @@ export function createPlugin(api: PluginAPI) {
 		}
 	});
 
-	log('MemClaw plugin initialized');
+	
+	// cortex_forget
+	api.registerTool({
+		name: toolSchemas.cortex_forget.name,
+		description: toolSchemas.cortex_forget.description,
+		parameters: toolSchemas.cortex_forget.inputSchema,
+		execute: async (_id, params) => {
+			const input = params as { uri: string };
+
+			try {
+				await ensureServicesReady();
+				await client.deleteUri(input.uri);
+
+				return {
+					content: `Forgotten: ${input.uri}`,
+					success: true
+				};
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				api.logger.error(`[memclaw] cortex_forget failed: ${message}`);
+				return { error: `Forget failed: ${message}` };
+			}
+		}
+	});
+
+log('MemClaw plugin initialized');
 
 	return {
 		id: 'memclaw',

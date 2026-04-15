@@ -14,10 +14,14 @@ import {
 	ensureAllServices,
 	checkServiceStatus,
 	isBinaryAvailable,
-	stopAllServices
+	stopAllServices,
+	executeCliCommand
 } from './binaries.js';
 import { createContextEngine, openClawSessionToCortexId } from './context-engine.js';
 import { createTools } from './tools.js';
+
+// Maintenance interval: 3 hours
+const MAINTENANCE_INTERVAL_MS = 3 * 60 * 60 * 1000;
 
 // ==================== Plugin API Types ====================
 
@@ -155,6 +159,7 @@ export function createPlugin(api: OpenClawPluginApi) {
 	// Create client
 	const client = new CortexMemClient(config.serviceUrl);
 	let servicesStarted = false;
+	let maintenanceTimer: ReturnType<typeof setInterval> | null = null;
 
 	// Service start function (extracted for reuse)
 	const startServices = async () => {
@@ -188,9 +193,88 @@ export function createPlugin(api: OpenClawPluginApi) {
 
 			servicesStarted = true;
 			log('MemClaw Context Engine services started successfully');
+
+			// Start maintenance timer
+			startMaintenanceTimer();
 		} catch (err) {
 			api.logger.error(`[memclaw-context-engine] Failed to start services: ${err}`);
 			api.logger.warn('[memclaw-context-engine] Context engine features may not work correctly');
+		}
+	};
+
+	// Maintenance timer functions
+	const runMaintenance = async () => {
+		if (!servicesStarted) return;
+
+		log('Running scheduled maintenance...');
+		const currentConfigPath = getConfigPath();
+
+		try {
+			const result = await executeCliCommand(
+				['vector', 'prune'],
+				currentConfigPath,
+				config.tenantId,
+				300000
+			);
+			if (result.success) {
+				log('Maintenance: vector prune completed');
+			} else {
+				api.logger.warn(`[maintenance] vector prune failed: ${result.stderr}`);
+			}
+		} catch (err) {
+			api.logger.error(`[maintenance] vector prune error: ${err}`);
+		}
+
+		try {
+			const result = await executeCliCommand(
+				['vector', 'reindex'],
+				currentConfigPath,
+				config.tenantId,
+				300000
+			);
+			if (result.success) {
+				log('Maintenance: vector reindex completed');
+			} else {
+				api.logger.warn(`[maintenance] vector reindex failed: ${result.stderr}`);
+			}
+		} catch (err) {
+			api.logger.error(`[maintenance] vector reindex error: ${err}`);
+		}
+
+		try {
+			const result = await executeCliCommand(
+				['layers', 'ensure-all'],
+				currentConfigPath,
+				config.tenantId,
+				300000
+			);
+			if (result.success) {
+				log('Maintenance: layers ensure-all completed');
+			} else {
+				api.logger.warn(`[maintenance] layers ensure-all failed: ${result.stderr}`);
+			}
+		} catch (err) {
+			api.logger.error(`[maintenance] layers ensure-all error: ${err}`);
+		}
+	};
+
+	const startMaintenanceTimer = () => {
+		if (maintenanceTimer) return;
+
+		maintenanceTimer = setInterval(() => {
+			runMaintenance().catch((err) => {
+				api.logger.error(`[maintenance] Scheduled maintenance failed: ${err}`);
+			});
+		}, MAINTENANCE_INTERVAL_MS);
+
+		log(`Maintenance timer started (interval: ${MAINTENANCE_INTERVAL_MS / 60000} minutes)`);
+	};
+
+	const stopMaintenanceTimer = () => {
+		if (maintenanceTimer) {
+			clearInterval(maintenanceTimer);
+			maintenanceTimer = null;
+			log('Maintenance timer stopped');
 		}
 	};
 
@@ -200,6 +284,7 @@ export function createPlugin(api: OpenClawPluginApi) {
 		start: startServices,
 		stop: async () => {
 			log('Stopping MemClaw Context Engine...');
+			stopMaintenanceTimer();
 			stopAllServices(log);
 			servicesStarted = false;
 		}
