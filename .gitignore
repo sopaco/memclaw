@@ -2,3 +2,8 @@ node_modules
 bun.lock
 .litho
 .DS_Store
+
+# Binary packages (distributed via GitHub Releases or other means)
+bin-darwin-arm64/bin/
+bin-linux-x64/bin/
+bin-win-x64/bin/
