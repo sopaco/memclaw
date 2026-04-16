@@ -86,7 +86,7 @@ OpenClaw Gateway
 
 Key design principle: **Both plugins share the same backend** (cortex-mem-service + Qdrant) and can be installed independently or together.
 
-For detailed architecture, data flow, and design decisions, see [`.ai-context/ARCHITECTURE.md`](.ai-context/ARCHITECTURE.md).
+For detailed architecture, data flow, and design decisions, see [`.ai-context/references/ARCHITECTURE.md`](.ai-context/references/ARCHITECTURE.md).
 
 ---
 
@@ -94,7 +94,7 @@ For detailed architecture, data flow, and design decisions, see [`.ai-context/AR
 
 ### plugin/
 
-A Memory Plugin that registers 11 tools (`cortex_search`, `cortex_add_memory`, `cortex_commit_session`, etc.). Core logic lives in `plugin-impl.ts` (~1130 lines) with supporting modules in `src/`.
+A Memory Plugin that registers 12 tools (`cortex_search`, `cortex_recall`, `cortex_add_memory`, `cortex_commit_session`, etc.). Core logic lives in `plugin-impl.ts` (~1300 lines) with supporting modules in `src/`.
 
 - **Skills**: Agent-facing instructions shipped in `skills/memclaw/` and `skills/memclaw-maintance/`
 - **Migration**: `src/migrate.ts` handles one-click migration from OpenClaw native memory
@@ -120,8 +120,8 @@ The `.ai-context/` folder contains supplementary documents that are **more likel
 
 | File | Content |
 |------|---------|
-| [`ARCHITECTURE.md`](.ai-context/ARCHITECTURE.md) | Detailed component relationships, API dependencies, and design rationale |
-| [`KNOWN_ISSUES.md`](.ai-context/KNOWN_ISSUES.md) | Current known issues, workarounds, and open TODOs |
+| [`references/ARCHITECTURE.md`](.ai-context/references/ARCHITECTURE.md) | Detailed component relationships, API dependencies, and design rationale |
+| [`DYNAMICS.md`](.ai-context/DYNAMICS.md) | Current known issues, workarounds, and open TODOs |
 
 ### When to Update .ai-context/
 

@@ -2,7 +2,7 @@
 
 > Key architectural and design decisions that shape this project. Update when decisions are made or revisited.
 >
-> Last reviewed: 2024-01
+> Last reviewed: 2026-04-16 (Audit completed)
 
 ---
 

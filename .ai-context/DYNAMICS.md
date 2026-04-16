@@ -1,6 +1,6 @@
 # Dynamics — Active Issues & Constraints
 
-> **Last updated:** 2026-04-04
+> **Last updated:** 2026-04-16 (Audit completed)
 > **Stability:** Dynamic — Update as issues arise/resolve
 
 ---
@@ -13,6 +13,7 @@
 | 🔴 Active | No test suite | Manual validation | Test in OpenClaw |
 | 🟡 Known | Config sync gap | Manual edits lost | Restart after edit |
 | 🟡 Known | Health check limited | Degraded state hidden | Manual curl check |
+| 🟡 Known | Documentation drift | Minor inaccuracies | This audit |
 | 🟢 Resolved | ~~Config auto-create~~ | — | — |
 | 🟢 Resolved | ~~Bulk message write~~ | — | — |
 
@@ -119,6 +120,7 @@ Current dedup uses word overlap. May miss semantic duplicates like "database set
 
 | Date | Change |
 |------|--------|
+| 2026-04-16 | Audit completed: confirmed binary duplication, added documentation drift issue |
 | 2026-04-04 | Initial version, migrated from KNOWN_ISSUES.md |
 
 ---

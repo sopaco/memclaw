@@ -1,6 +1,6 @@
 # Architecture — Component Relationships
 
-> How components fit together. Last updated: 2026-04-04.
+> How components fit together. Last updated: 2026-04-16 (Audit completed).
 >
 > **Update this when:** New component added, responsibilities shift, data flow changes.
 
