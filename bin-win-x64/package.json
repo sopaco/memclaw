@@ -18,7 +18,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/sopaco/cortex-mem.git",
-		"directory": "examples/@memclaw/bin-win-x64"
+		"url": "git+https://github.com/sopaco/memclaw.git",
+		"directory": "bin-win-x64"
 	}
 }
